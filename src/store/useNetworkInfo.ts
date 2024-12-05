@@ -3,13 +3,13 @@ import useSmesherConnection from './useSmesherConnection';
 import { fetchNetworkInfo } from '../api/requests/netinfo';
 import { singletonHook } from 'react-singleton-hook';
 import { useEffect } from 'react';
-import createDynamicStore from './utils/createDynamicStore';
+import createDynamicStore, { createViewOnlyDynamicStore, getDynamicStoreDefaults } from './utils/createDynamicStore';
 
 const useNetworkInfoStore = createDynamicStore<Network>();
 
 const useNetworkInfo = () => {
   const { getConnection } = useSmesherConnection();
-  const { data, error, setData, setError } = useNetworkInfoStore();
+  const store = useNetworkInfoStore();
   const rpc = getConnection();
 
   // Update function
@@ -20,35 +20,33 @@ const useNetworkInfo = () => {
     }
     try {
       const netInfo = await fetchNetworkInfo(rpc);
-      setData(netInfo);
+      store.setData(netInfo);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Cannot fetch network info', err);
       if (err instanceof Error) {
-        setError(err);
+        store.setError(err);
       } else {
-        setError(new Error(`Cannot fetch network info because of unknown error: ${err}`));
+        store.setError(new Error(`Cannot fetch network info because of unknown error: ${err}`));
       }
     }
   };
 
   // Update automatically when the connection changes or on mount
   useEffect(() => {
-    if (rpc && !data) {
+    if (rpc && !store.data) {
       update();
     }
   }, [rpc]);
 
   // Provides only NetInfo and update function call
   return {
-    info: data,
-    error,
+    ...createViewOnlyDynamicStore(store),
     update,
   };
 };
 
 export default singletonHook({
-  info: null,
-  error: null,
+  ...getDynamicStoreDefaults(),
   update: () => { throw new Error('The hook is not initialized yet'); },
 }, useNetworkInfo);

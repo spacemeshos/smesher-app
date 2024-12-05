@@ -8,6 +8,12 @@ export type DynamicStore<T> = {
   setError: (error: Error) => void;
 };
 
+export type ViewOnlyDynamicStore<T> = {
+  data: T | null;
+  error: Error | null;
+  lastUpdate: number;
+}
+
 const createDynamicStore = <T>() => create<DynamicStore<T>>((set) => ({
   data: null,
   error: null,
@@ -17,5 +23,17 @@ const createDynamicStore = <T>() => create<DynamicStore<T>>((set) => ({
   setError: (error: Error, dontDropData = false) =>
     set({ error, lastUpdate: Date.now() }),
 }));
+
+export const createViewOnlyDynamicStore = <T>(dynStore: DynamicStore<T>): ViewOnlyDynamicStore<T> => ({
+  data: dynStore.data,
+  error: dynStore.error,
+  lastUpdate: dynStore.lastUpdate,
+});
+
+export const getDynamicStoreDefaults = () => ({
+  data: null,
+  error: null,
+  lastUpdate: 0,
+});
 
 export default createDynamicStore;

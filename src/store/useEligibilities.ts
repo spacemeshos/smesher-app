@@ -1,21 +1,16 @@
 import { singletonHook } from 'react-singleton-hook';
 
-import createDynamicStore from './utils/createDynamicStore';
-import useSmesherConnection from './useSmesherConnection';
-// import useEveryLayerFetcher from './utils/useEveryLayerFetcher';
+import createDynamicStore, { createViewOnlyDynamicStore, getDynamicStoreDefaults } from './utils/createDynamicStore';
 import { ElibigilitiesByIdentity } from '../api/schemas/eligibilities';
 import { fetchEligibilities } from '../api/requests/eligibilities';
-import useEveryEpochFetcher from './utils/useEveryEpochFetcher';
+import useEveryLayerFetcher from './utils/useEveryLayerFetcher';
 
 const useEligibilitiesStore = createDynamicStore<ElibigilitiesByIdentity>();
 
 const useEligibilities = () => {
-  const { getConnection } = useSmesherConnection();
   const store = useEligibilitiesStore();
-  const rpc = getConnection();
-  if (!rpc) return { ids: store.data, error: store.error};
-  useEveryEpochFetcher(store, () => fetchEligibilities(rpc));
-  return { ids: store.data, error: store.error };
+  useEveryLayerFetcher(store, fetchEligibilities);
+  return createViewOnlyDynamicStore(store);
 };
 
-export default singletonHook({ ids: null, error: null }, useEligibilities);
+export default singletonHook(getDynamicStoreDefaults(), useEligibilities);

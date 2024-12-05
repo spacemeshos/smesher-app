@@ -11,9 +11,9 @@ const usePoETInfo = () => {
   const { getConnection } = useSmesherConnection();
   const store = usePoetInfoStore();
   const rpc = getConnection();
-  if (!rpc) return { info: store.data, error: store.error};
+  if (!rpc) return { data: store.data, error: store.error};
   useIntervalFetcher(store, () => fetchPoETInfo(rpc), 60 * 60); // every hour
-  return { info: store.data, error: store.error };
+  return { data: store.data, error: store.error };
 };
 
-export default singletonHook({ info: null, error: null }, usePoETInfo);
+export default singletonHook({ data: null, error: null }, usePoETInfo);

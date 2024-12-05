@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { Base64Schema, HexStringSchema } from './common';
+import { BigIntStringSchema } from './strNumber';
 
 export enum SmesherState {
   UNSPECIFIED = 'UNSPECIFIED',
@@ -20,6 +21,7 @@ export enum SmesherState {
   ATX_BROADCASTED = 'ATX_BROADCASTED',
 
   PROPOSAL_PUBLISHED = 'PROPOSAL_PUBLISHED',
+  PROPOSAL_PUBLISH_FAILED = 'PROPOSAL_PUBLISH_FAILED',
 }
 
 const SmesherHistoryItem = (state: SmesherState, key?: string, detailsSchema?: z.ZodTypeAny) => z.object({
@@ -65,6 +67,11 @@ export const SmesherHistoryItemSchema = z.discriminatedUnion('state', [
   SmesherHistoryItem(SmesherState.PROPOSAL_PUBLISHED, 'proposalPublished', z.object({
     proposal: Base64Schema,
     layer: z.number(),
+  })),
+  SmesherHistoryItem(SmesherState.PROPOSAL_PUBLISH_FAILED, 'proposalPublishFailed', z.object({
+    layer: BigIntStringSchema,
+    message: z.string(),
+    proposal: Base64Schema,
   })),
 ]);
 

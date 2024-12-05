@@ -11,6 +11,7 @@ import modalTheme from './theme/modal';
 import radioTheme from './theme/radio';
 import selectTheme from './theme/select';
 import tabsTheme from './theme/tabs';
+import tableTheme from './theme/table';
 
 const config: ThemeConfig = {
   initialColorMode: 'dark',
@@ -28,6 +29,7 @@ const colors = {
     gray: '#B9B9B9',
     darkGray: '#7D7B7B',
     red: '#F54E4E',
+    yellow: '#FFD700',
   },
 };
 
@@ -51,6 +53,7 @@ const components = {
   Input: inputTheme,
   Select: selectTheme,
   FormLabel: formLabelTheme,
+  Table: tableTheme,
 };
 const theme = extendTheme({ config, colors, components, styles });
 

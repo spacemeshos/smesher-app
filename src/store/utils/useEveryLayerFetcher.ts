@@ -10,11 +10,11 @@ const useEveryLayerFetcher = <T>(
 ) => {
   const { getConnection } = useSmesherConnection();
   const rpc = getConnection();
-  const { info } = useNetworkInfo();
+  const { data } = useNetworkInfo();
   if (!rpc) return store;
 
   // TODO: Wait for the layer beginning and only only then set interval
-  useIntervalFetcher(store, () => fetcher(rpc), info?.layerDuration || 0, dontDropData);
+  useIntervalFetcher(store, () => fetcher(rpc), data?.layerDuration || 0, dontDropData);
 
   return store;
 };

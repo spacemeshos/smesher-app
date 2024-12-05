@@ -4,6 +4,7 @@ export type Network = {
   hrp: string;
   genesisTime: number;
   genesisId: HexString;
+  effectiveGenesisLayer: number;
   layerDuration: number; // Seconds
   layersPerEpoch: number;
   labelsPerUnit: string;
