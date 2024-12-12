@@ -18,7 +18,7 @@ const config: ThemeConfig = {
   useSystemColorMode: false,
 };
 
-const colors = {
+export const colors = {
   brand: {
     darkGreen: '#061A14',
     green: '#3AFFA7',

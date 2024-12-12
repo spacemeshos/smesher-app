@@ -264,9 +264,7 @@ function DashboardScreen(): JSX.Element {
           </Accordion>
         </Box>
       </Flex>
-      <Box w="100%" ml={-4} mr={-4}>
-        <SmeshingTimeline />
-      </Box>
+      <SmeshingTimeline />
     </>
   );
 }
