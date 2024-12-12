@@ -1,0 +1,67 @@
+/* Overall */
+.vis-timeline {
+  border: 1px solid #25322F;
+}
+.vis-item {
+  font-size: 12px;
+  color: #F0F0F0;
+  background: #25322F;
+}
+.epoch.vis-item, .current-epoch.vis-item, .layer.vis-item, .poet-round.vis-item, .cycle-gap.vis-item {
+  border: 1px solid #061A14 !important;
+}
+.vis-panel.vis-bottom, .vis-panel.vis-center, .vis-panel.vis-left, .vis-panel.vis-right, .vis-panel.vis-top {
+  border-color: #25322F !important;
+}
+
+.vis-itemset .vis-foreground {
+  background: rgba(0,0,0,.2);
+}
+
+.vis-rolling-mode-btn {
+  background-color: #3AFFA7;
+  color: black;
+  font-size: 26px;
+}
+
+.vis-time-axis {
+  font-size: 10px;
+}
+
+
+/* BG */
+.vis-vertical, .vis-group {
+  border-color: #25322F !important;
+}
+
+/* Group labels */
+.vis-labelset {
+  min-width: 80px;
+}
+
+.vis-label {
+  background: #061A14 !important;
+  font-size: 12px;
+  text-align: left;
+  padding: 0 3px;
+  border-color: #25322F !important;
+  color: #B9B9B9 !important;
+}
+.vis-nested-group .vis-inner {
+  padding-left: 0 !important;
+}
+
+.vis-group-level-unknown-but-gte1 {
+  border: none;
+}
+
+/* Events */
+.smesher-event.vis-item {
+  border: none;
+  background: #25322F;
+  font-size: 10px;
+  color: white;
+}
+.smesher-event.vis-dot {
+  border: 3px solid #3AFFA7;
+}

@@ -1,13 +1,20 @@
-import { Link, useNavigate } from 'react-router-dom';
-
-import { Button, Flex, FormLabel, Input, Text } from '@chakra-ui/react';
-import { IconArrowNarrowRight } from '@tabler/icons-react';
 import { Form, useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+
+import {
+  Button,
+  Flex,
+  FormErrorMessage,
+  FormLabel,
+  Input,
+  Text,
+} from '@chakra-ui/react';
+import { O } from '@mobily/ts-belt';
+import { IconArrowNarrowRight } from '@tabler/icons-react';
 
 import Logo from '../components/basic/Logo';
-import useSmesherConnection from '../store/useSmesherConnection';
-import { O } from '@mobily/ts-belt';
 import useNetworkInfo from '../store/useNetworkInfo';
+import useSmesherConnection from '../store/useSmesherConnection';
 import { normalizeURL } from '../utils/url';
 
 function WelcomeScreen(): JSX.Element {
@@ -19,6 +26,7 @@ function WelcomeScreen(): JSX.Element {
     handleSubmit,
     control,
     formState: { errors },
+    setError,
   } = useForm<{
     jsonRPC: string;
   }>();
@@ -27,10 +35,11 @@ function WelcomeScreen(): JSX.Element {
     setConnection(data.jsonRPC);
     try {
       await NetInfo.update();
-      console.log('Smesher service is connected to', NetInfo.info);
       navigate('/dash');
     } catch (err) {
-      console.log('wtf', err);
+      if (err instanceof Error) {
+        setError('jsonRPC', { message: err.message });
+      }
     }
   });
 
@@ -64,15 +73,21 @@ function WelcomeScreen(): JSX.Element {
         </Text>
 
         <Form control={control}>
-          <FormLabel fontSize="sm">
-            URL to Smesher's API
-          </FormLabel>
-          <Input type="url" {...register('jsonRPC', {
-            required: true,
-            value: O.getWithDefault(getConnection(), 'http://localhost:9071/'),
-            setValueAs: normalizeURL,
-          })}>
-          </Input>
+          <FormLabel fontSize="sm">URL to Smesher&apos;s API</FormLabel>
+          <FormErrorMessage>
+            {errors.jsonRPC && errors.jsonRPC.message}
+          </FormErrorMessage>
+          <Input
+            type="url"
+            {...register('jsonRPC', {
+              required: true,
+              value: O.getWithDefault(
+                getConnection(),
+                'http://localhost:9071/'
+              ),
+              setValueAs: normalizeURL,
+            })}
+          />
           <Button
             type="submit"
             width={280}

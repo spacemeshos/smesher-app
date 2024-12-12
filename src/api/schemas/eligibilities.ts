@@ -6,13 +6,17 @@ export const ProposalEligibilitySchema = z.object({
 });
 
 export const EpochEligibilitiesSchema = z.object({
-  epochs: z.record(z.object({
-    eligibilities: z.array(ProposalEligibilitySchema),
-  })),
+  epochs: z.record(
+    z.object({
+      eligibilities: z.array(ProposalEligibilitySchema),
+    })
+  ),
 });
 
 export const EligibilitiesResponseSchema = z.object({
   identities: z.record(EpochEligibilitiesSchema),
 });
 
-export type ElibigilitiesByIdentity = z.infer<typeof EligibilitiesResponseSchema>['identities'];
+export type ElibigilitiesByIdentity = z.infer<
+  typeof EligibilitiesResponseSchema
+>['identities'];

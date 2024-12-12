@@ -4,8 +4,7 @@ import { createMultiStyleConfigHelpers } from '@chakra-ui/styled-system';
 const { definePartsStyle, defineMultiStyleConfig } =
   createMultiStyleConfigHelpers(parts.keys);
 
-const baseStyle = definePartsStyle({
-});
+const baseStyle = definePartsStyle({});
 
 const tableTheme = defineMultiStyleConfig({
   baseStyle,

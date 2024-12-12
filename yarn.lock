@@ -2438,6 +2438,11 @@
   resolved "https://registry.yarnpkg.com/@types/estree/-/estree-1.0.5.tgz#a6ce3e556e00fd9895dd872dd172ad0d4bd687f4"
   integrity sha512-/kYRxGDLWzHOB7q+wtSUQlFrtcdUccpfy+X+9iMBpHK8QLLhx2wIPYuS5DYtR9Wa/YlZAbIovy7qVdB1Aq6Lyw==
 
+"@types/frappe-gantt@^0.6.4":
+  version "0.6.4"
+  resolved "https://registry.yarnpkg.com/@types/frappe-gantt/-/frappe-gantt-0.6.4.tgz#c090dee176bcd83031d9e8ba5620f277c3dddd5b"
+  integrity sha512-HvF+ED1gwhyuN/pvJW5VdEL+JP95q3xyX3NMFcF6R0NJLukXVg/yz4znzSTd81mqzPABABa4Pj6YoQCUHiZa+A==
+
 "@types/graceful-fs@^4.1.3":
   version "4.1.9"
   resolved "https://registry.yarnpkg.com/@types/graceful-fs/-/graceful-fs-4.1.9.tgz#2a06bc0f68a20ab37b3e36aa238be6abdf49e8b4"
@@ -3558,6 +3563,11 @@ combined-stream@^1.0.8:
   dependencies:
     delayed-stream "~1.0.0"
 
+commander@^2.20.3:
+  version "2.20.3"
+  resolved "https://registry.yarnpkg.com/commander/-/commander-2.20.3.tgz#fd485e84c03eb4881c20722ba48035e8531aeb33"
+  integrity sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==
+
 commitizen@^4.0.3:
   version "4.3.0"
   resolved "https://registry.yarnpkg.com/commitizen/-/commitizen-4.3.0.tgz#0d056c542a2d2b1f9b9aba981aa32575b2849924"
@@ -3814,6 +3824,11 @@ cssesc@^3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/cssesc/-/cssesc-3.0.0.tgz#37741919903b868565e1c09ea747445cd18983ee"
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
+
+cssfilter@0.0.10:
+  version "0.0.10"
+  resolved "https://registry.yarnpkg.com/cssfilter/-/cssfilter-0.0.10.tgz#c6d2672632a2e5c83e013e6864a42ce8defd20ae"
+  integrity sha512-FAaLDaplstoRsDR8XGYH51znUN0UY7nMc6Z9/fvE8EXGwvJE9hu7W2vHwx1+bd6gCYnln9nLbzxFTrcO9YQDZw==
 
 cssom@^0.5.0:
   version "0.5.0"
@@ -6916,6 +6931,11 @@ mkdirp@^1.0.3:
   resolved "https://registry.yarnpkg.com/mkdirp/-/mkdirp-1.0.4.tgz#3eb5ed62622756d79a5f0e2a221dfebad75c2f7e"
   integrity sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==
 
+moment@^2.30.1:
+  version "2.30.1"
+  resolved "https://registry.yarnpkg.com/moment/-/moment-2.30.1.tgz#f8c91c07b7a786e30c59926df530b4eac96974ae"
+  integrity sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==
+
 ms@2.1.2:
   version "2.1.2"
   resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.2.tgz#d09d1f357b443f493382a8eb3ccd183872ae6009"
@@ -9046,6 +9066,16 @@ validate-npm-package-name@^5.0.0, validate-npm-package-name@^5.0.1:
   resolved "https://registry.yarnpkg.com/validate-npm-package-name/-/validate-npm-package-name-5.0.1.tgz#a316573e9b49f3ccd90dbb6eb52b3f06c6d604e8"
   integrity sha512-OljLrQ9SQdOUqTaQxqL5dEfZWrXExyyWsozYlAWFawPVNuD83igl7uJD2RTkNMbniIYgt8l81eCJGIdQF7avLQ==
 
+vis-data@^7.1.9:
+  version "7.1.9"
+  resolved "https://registry.yarnpkg.com/vis-data/-/vis-data-7.1.9.tgz#ea0504df6fcbaae175173f4bbb05a960ce6c8891"
+  integrity sha512-COQsxlVrmcRIbZMMTYwD+C2bxYCFDNQ2EHESklPiInbD/Pk3JZ6qNL84Bp9wWjYjAzXfSlsNaFtRk+hO9yBPWA==
+
+vis-timeline@^7.7.3:
+  version "7.7.3"
+  resolved "https://registry.yarnpkg.com/vis-timeline/-/vis-timeline-7.7.3.tgz#79434eb3029169bff8de1b5012aa5c29786d6594"
+  integrity sha512-hGMzTttdOFWaw1PPlJuCXU2/4UjnsIxT684Thg9fV6YU1JuKZJs3s3BrJgZ4hO3gu5i1hsMe1YIi96o+eNT0jg==
+
 vite-plugin-node-polyfills@^0.22.0:
   version "0.22.0"
   resolved "https://registry.yarnpkg.com/vite-plugin-node-polyfills/-/vite-plugin-node-polyfills-0.22.0.tgz#d0afcf82eb985fc02244620d7cec1ddd1c6e0864"
@@ -9241,6 +9271,14 @@ xmlchars@^2.2.0:
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/xmlchars/-/xmlchars-2.2.0.tgz#060fe1bcb7f9c76fe2a17db86a9bc3ab894210cb"
   integrity sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==
+
+xss@^1.0.15:
+  version "1.0.15"
+  resolved "https://registry.yarnpkg.com/xss/-/xss-1.0.15.tgz#96a0e13886f0661063028b410ed1b18670f4e59a"
+  integrity sha512-FVdlVVC67WOIPvfOwhoMETV72f6GbW7aOabBC3WxN/oUdoEMDyLz4OgRv5/gck2ZeNqEQu+Tb0kloovXOfpYVg==
+  dependencies:
+    commander "^2.20.3"
+    cssfilter "0.0.10"
 
 xtend@^4.0.2:
   version "4.0.2"

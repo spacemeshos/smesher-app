@@ -10,8 +10,8 @@ import menuTheme from './theme/menu';
 import modalTheme from './theme/modal';
 import radioTheme from './theme/radio';
 import selectTheme from './theme/select';
-import tabsTheme from './theme/tabs';
 import tableTheme from './theme/table';
+import tabsTheme from './theme/tabs';
 
 const config: ThemeConfig = {
   initialColorMode: 'dark',

@@ -1,24 +1,28 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
 import { FETCH_NODE_STATUS_RETRY } from '../../utils/constants';
-import { DynamicStore } from './createDynamicStore';
 import { noop } from '../../utils/func';
+
+import { DynamicStore } from './createDynamicStore';
 
 const useIntervalFetcher = <T>(
   store: DynamicStore<T>,
   fetcher: () => Promise<T>,
-  seconds: number,
-  dontDropData = false
+  seconds: number
 ) => {
+  const [noApiError, setNoApiError] = useState(false);
   const { data, lastUpdate, setData, setError } = store;
-  useEffect(() => {
-    if (seconds <= 0) return noop;
 
+  useEffect(() => {
+    if (seconds <= 0) {
+      setNoApiError(true);
+      return noop;
+    }
+
+    setNoApiError(false);
     const layerDuration = seconds * 1000;
     const update = () => {
-      if (
-        !lastUpdate ||
-        Date.now() - lastUpdate > layerDuration
-      ) {
+      if (!lastUpdate || Date.now() - lastUpdate > layerDuration) {
         fetcher().then(setData).catch(setError);
       }
     };
@@ -29,7 +33,13 @@ const useIntervalFetcher = <T>(
       data ? layerDuration : FETCH_NODE_STATUS_RETRY
     );
     return () => clearInterval(ival);
-  }, [lastUpdate, seconds, setError, setData, data]);
+  }, [lastUpdate, seconds, setError, setData, data, fetcher, noApiError]);
+
+  useEffect(() => {
+    if (noApiError) {
+      setError(new Error('Cannot connect to the API'), true);
+    }
+  }, [noApiError, setError]);
 
   return store;
 };

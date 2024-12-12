@@ -1,9 +1,14 @@
-import { Network } from '../types/networks';
-import useSmesherConnection from './useSmesherConnection';
-import { fetchNetworkInfo } from '../api/requests/netinfo';
+import { useCallback, useEffect, useMemo } from 'react';
 import { singletonHook } from 'react-singleton-hook';
-import { useEffect } from 'react';
-import createDynamicStore, { createViewOnlyDynamicStore, getDynamicStoreDefaults } from './utils/createDynamicStore';
+
+import { fetchNetworkInfo } from '../api/requests/netinfo';
+import { Network } from '../types/networks';
+
+import createDynamicStore, {
+  createViewOnlyDynamicStore,
+  getDynamicStoreDefaults,
+} from './utils/createDynamicStore';
+import useSmesherConnection from './useSmesherConnection';
 
 const useNetworkInfoStore = createDynamicStore<Network>();
 
@@ -13,10 +18,11 @@ const useNetworkInfo = () => {
   const rpc = getConnection();
 
   // Update function
-  const update = async () => {
-    const rpc = getConnection();
+  const update = useCallback(async () => {
     if (!rpc) {
-      throw new Error('Cannot fetch network info without a connection to Smesher service');
+      throw new Error(
+        'Cannot fetch network info without a connection to Smesher service'
+      );
     }
     try {
       const netInfo = await fetchNetworkInfo(rpc);
@@ -27,26 +33,38 @@ const useNetworkInfo = () => {
       if (err instanceof Error) {
         store.setError(err);
       } else {
-        store.setError(new Error(`Cannot fetch network info because of unknown error: ${err}`));
+        store.setError(
+          new Error(
+            `Cannot fetch network info because of unknown error: ${err}`
+          )
+        );
       }
     }
-  };
+  }, [rpc, store]);
 
   // Update automatically when the connection changes or on mount
   useEffect(() => {
-    if (rpc && !store.data) {
+    if (rpc && !store.data && !store.error) {
       update();
     }
-  }, [rpc]);
+  }, [rpc, store.data, store.error, update]);
 
   // Provides only NetInfo and update function call
-  return {
-    ...createViewOnlyDynamicStore(store),
-    update,
-  };
+  return useMemo(
+    () => ({
+      ...createViewOnlyDynamicStore(store),
+      update,
+    }),
+    [store, update]
+  );
 };
 
-export default singletonHook({
-  ...getDynamicStoreDefaults(),
-  update: () => { throw new Error('The hook is not initialized yet'); },
-}, useNetworkInfo);
+export default singletonHook(
+  {
+    ...getDynamicStoreDefaults(),
+    update: () => {
+      throw new Error('The hook is not initialized yet');
+    },
+  },
+  useNetworkInfo
+);

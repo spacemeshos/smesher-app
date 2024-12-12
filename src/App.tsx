@@ -1,29 +1,22 @@
 import React from 'react';
-import { createHashRouter, redirect, RouterProvider } from 'react-router-dom';
+import { createHashRouter, RouterProvider } from 'react-router-dom';
 
 import { ChakraProvider, ColorModeScript, Flex } from '@chakra-ui/react';
 
+import DashboardScreen from './screens/DashboardScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
 import Fonts from './theme/Fonts';
 import theme from './theme';
-import PageWrapper from './screens/PageWrapper';
-import DashboardScreen from './screens/DashboardScreen';
 
 function App(): JSX.Element {
   const router = createHashRouter([
     {
       path: '/',
-      element: <PageWrapper />,
-      children: [
-        {
-          index: true,
-          element: <WelcomeScreen />,
-        },
-        {
-          path: '/dash',
-          element: <DashboardScreen />,
-        }
-      ],
+      element: <WelcomeScreen />,
+    },
+    {
+      path: '/dash',
+      element: <DashboardScreen />,
     },
   ]);
 

@@ -6,8 +6,10 @@ export const ProposalSchema = z.object({
 });
 
 export const ProposalsResponseSchema = z.object({
-  proposals: z.record(z.object({ proposals: z.array(ProposalSchema), })),
+  proposals: z.record(z.object({ proposals: z.array(ProposalSchema) })),
 });
 
 export type Proposal = z.infer<typeof ProposalSchema>;
-export type ProposalsByIdentity = z.infer<typeof ProposalsResponseSchema>['proposals'];
+export type ProposalsByIdentity = z.infer<
+  typeof ProposalsResponseSchema
+>['proposals'];
