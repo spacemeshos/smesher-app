@@ -1,5 +1,8 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { DataSet } from 'vis-data';
 import { DataItem } from 'vis-timeline';
+
+import { usePrevious } from '@chakra-ui/react';
 
 import useNetworkInfo from '../store/useNetworkInfo';
 import useNodeStatus from '../store/useNodeStatus';
@@ -13,12 +16,17 @@ import {
   getLayerEndTime,
   getLayerStartTime,
 } from '../utils/timeline';
+import { SmesherState } from '../api/schemas/smesherStates';
+
+const getHash = (item: DataItem) =>
+  `${item.id}-${item.start}-${item.end}-${item.content}`;
 
 const useTimelineData = () => {
   const { data: netInfo } = useNetworkInfo();
   const { data: nodeStatus } = useNodeStatus();
   const { data: poetInfo } = usePoETInfo();
   const { data: smesherStates } = useSmesherStates();
+  const dataSetRef = useRef(new DataSet<DataItem>());
 
   const currentEpoch =
     netInfo && nodeStatus
@@ -144,14 +152,18 @@ const useTimelineData = () => {
 
     return entries.flatMap(([id, { history }]) => {
       const group = entries.length > 1 ? `smesher_${id}` : 'events';
-      const items = history.map((item, index) => ({
+      const items = history.map((item) => ({
         content: item.state,
-        id: `smeshing_${id}_${index}`,
+        id: `smeshing_${id}_${item.state}_${item.time}`,
         group,
         subgroup: item.state,
         start: new Date(item.time).getTime(),
         type: 'point',
-        className: 'smesher-event', // TODO: color by status
+        className:
+          item.state === SmesherState.RETRYING ||
+          item.state === SmesherState.PROPOSAL_PUBLISH_FAILED
+            ? 'smesher-event failure'
+            : 'smesher-event',
       }));
 
       return items;
@@ -163,6 +175,17 @@ const useTimelineData = () => {
     [epochs, events, layers, poetRounds]
   );
 
+  const hash = useMemo(() => new Set(items.map(getHash)), [items]);
+  const prevHashes = usePrevious(hash);
+
+  useEffect(() => {
+    if (dataSetRef.current) {
+      // TODO: Replace with better API calls instead of filtering on the client
+      const newItems = items.filter((i) => !prevHashes.has(getHash(i)));
+      dataSetRef.current.add(newItems);
+    }
+  }, [dataSetRef, items, prevHashes]);
+
   return {
     currentEpoch,
     currentEpochStartTime,
@@ -170,7 +193,7 @@ const useTimelineData = () => {
     epochDuration,
     epochs,
     layers,
-    items,
+    items: dataSetRef.current,
     nestedEventGroups,
   };
 };

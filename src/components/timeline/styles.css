@@ -7,6 +7,10 @@
   color: #F0F0F0;
   background: #25322F;
 }
+.vis-item.vis-selected {
+  background: #3AFFA7 !important;
+  color: #000 !important;
+}
 .epoch.vis-item, .current-epoch.vis-item, .layer.vis-item, .poet-round.vis-item, .cycle-gap.vis-item {
   border: 1px solid #061A14 !important;
 }
@@ -26,6 +30,12 @@
 
 .vis-time-axis {
   font-size: 10px;
+}
+
+.vis-custom-time.cursor {
+  background-color: #3AFFA7;
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 
@@ -62,6 +72,12 @@
   font-size: 10px;
   color: white;
 }
+.smesher-event.vis-point {
+  border-top: 1px solid #061A14 !important;
+}
 .smesher-event.vis-dot {
   border: 3px solid #3AFFA7;
+}
+.smesher-event.vis-dot.failure {
+  border: 3px solid #F54E4E;
 }
