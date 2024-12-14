@@ -70,7 +70,13 @@ function DashboardScreen(): JSX.Element {
 
   return (
     <>
-      <Flex grow={1} w="100%" flexDir="column" alignItems="flex-start">
+      <Flex
+        grow={1}
+        w="100%"
+        flexDir="column"
+        alignItems="flex-start"
+        overflow="auto"
+      >
         <Box mb={2} w="100%">
           <StatusBulb status={getStatusByStore(Node)} mr={2} />
           Connected to {getConnection()}

@@ -28,6 +28,7 @@ function App(): JSX.Element {
         flexDirection="column"
         alignItems="center"
         minH="100vh"
+        maxH="100vh"
         w="100vw"
         p={4}
       >
