@@ -1,4 +1,4 @@
-# Smapp-Lite (Spacemesh Wallet App)
+# Smesher Monitor App
 
 ## Getting started
 
@@ -12,6 +12,15 @@
    ```bash
    yarn dev
    ```
+
+3. If you want to connect to the local node you may need to run cors middleware:
+  ```bash
+  yarn cors
+  ```
+  Later you can connect to your node using URL:
+  ```
+  http://localhost:8080/0.0.0.0:9071
+  ```
 
 ### Lint commands
 
