@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Timeline, TimelineGroup } from 'vis-timeline';
+import { DataItem, Timeline, TimelineGroup } from 'vis-timeline';
 
-import { Box, Text, usePrevious } from '@chakra-ui/react';
+import { Box, position, Text, usePrevious } from '@chakra-ui/react';
 
 import useTimelineData from '../../hooks/useTimelineData';
 import { colors } from '../../theme';
@@ -39,6 +39,12 @@ type CursorState = {
   content: null | JSX.Element;
 };
 
+type TooltipState = {
+  x: number;
+  y: number;
+  content: null | JSX.Element;
+};
+
 const pad2 = (time: number) => String(time).padStart(2, '0');
 
 const calculateCursorPosition = (
@@ -73,16 +79,66 @@ const calculateCursorPosition = (
   return leftPos;
 };
 
+const calculateTooltipPosition = (
+  rootElement: Element | null,
+  tooltipElement: Element | null
+) => {
+  const selected = document.getElementsByClassName('vis-selected')[0];
+  if (!rootElement || !tooltipElement || !selected) return { x: -1000, y: 0 };
+
+  const rootBox = rootElement.getBoundingClientRect();
+  const tooltipBox = tooltipElement.getBoundingClientRect();
+  const selectedBox = selected.getBoundingClientRect();
+  const left = selectedBox.x - rootBox.left + selectedBox.width / 2;
+  const top = selectedBox.y - rootBox.top - tooltipBox.height;
+
+  // Stick to the right edge
+  if (left + tooltipBox.width / 2 > window.innerWidth - 33) {
+    // If selected item is out of sight
+    if (selectedBox.x > rootBox.x + rootBox.width) {
+      return { x: -1000, y: top };
+    }
+    // TODO: Move arrow to point on the selected item
+    return { x: window.innerWidth - tooltipBox.width / 2 - 33, y: top };
+  }
+
+  // Stick to the left edge
+  if (left - tooltipBox.width / 2 < 0) {
+    // If selected item is out of sight
+    const leftPanel = document.getElementsByClassName('vis-left')[0];
+    if (leftPanel) {
+      const leftPanelBox = leftPanel.getBoundingClientRect();
+      if (selectedBox.x + selectedBox.width < rootBox.x + leftPanelBox.width) {
+        return { x: -1000, y: top };
+      }
+    }
+    if (selectedBox.x + selectedBox.width < rootBox.x) {
+      return { x: -1000, y: top };
+    }
+    // TODO: Move arrow to point on the selected item
+    return { x: 0 + tooltipBox.width / 2, y: top };
+  }
+
+  // In general case
+  return { x: left, y: top };
+};
+
 export default function SmeshingTimeline() {
   const ref = useRef(null);
   const chartRef = useRef<Timeline | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const cursorTimeRef = useRef<HTMLDivElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
   const data = useTimelineData();
   const prevItems = usePrevious(data.items);
   const prevGroups = usePrevious(data.nestedEventGroups);
   const [zoomedIn, setZoomedIn] = useState(false);
   const [cursor, setCursor] = useState<CursorState>({
+    x: -1000,
+    content: null,
+  });
+  const [tooltip, setTooltip] = useState<TooltipState>({
+    y: 0,
     x: -1000,
     content: null,
   });
@@ -116,12 +172,24 @@ export default function SmeshingTimeline() {
 
       chartRef.current.addCustomTime(0, 'cursor');
       chartRef.current.on('rangechange', () => {
+        // update cursor time  position
         const left = calculateCursorPosition(
           rootRef.current,
           cursorTimeRef.current
         );
         setCursor((prevState) => ({
           x: left,
+          content: prevState.content,
+        }));
+
+        // update tooltip position
+        const pos = calculateTooltipPosition(
+          rootRef.current,
+          tooltipRef.current
+        );
+        setTooltip((prevState) => ({
+          x: pos.x,
+          y: pos.y,
           content: prevState.content,
         }));
       });
@@ -145,9 +213,53 @@ export default function SmeshingTimeline() {
                   .{event.time.getFullYear()}
                 </Text>
               </>
-            ), // event.time,
+            ),
           });
         }
+      });
+      chartRef.current.on('select', ({ items }: { items: string[] }) => {
+        const pos = calculateTooltipPosition(
+          rootRef.current,
+          tooltipRef.current
+        );
+        setTooltip({
+          x: pos.x,
+          y: pos.y,
+          content: (
+            <>
+              {items.map((id) => {
+                const item = data.items.get(id);
+                if (!item) {
+                  return 'Unknown item';
+                }
+                return (
+                  <div key={id}>
+                    <Text mb={2} fontWeight="bold">
+                      {item.data.title || item.content || 'Unknown object'}
+                    </Text>
+                    {item.start && item.end && (
+                      <Text>
+                        {item.start
+                          ? new Date(item.start).toLocaleString()
+                          : ''}{' '}
+                        &mdash;{' '}
+                        {item.end ? new Date(item.end).toLocaleString() : ''}
+                      </Text>
+                    )}
+                    {item.start && !item.end && (
+                      <Text>
+                        At{' '}
+                        {item.start
+                          ? new Date(item.start).toLocaleString()
+                          : ''}
+                      </Text>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          ),
+        });
       });
       return;
     }
@@ -183,6 +295,7 @@ export default function SmeshingTimeline() {
   return (
     <Box w="100%" pos="relative" ref={rootRef}>
       <Box
+        ref={cursorTimeRef}
         pos="absolute"
         zIndex={5}
         bg={colors.brand.green}
@@ -192,11 +305,37 @@ export default function SmeshingTimeline() {
         fontSize="x-small"
         p={1}
         top="-38px"
-        ref={cursorTimeRef}
       >
         {cursor.content}
       </Box>
-      {/* TODO: Tooltip for selected items */}
+      <Box
+        ref={tooltipRef}
+        pos="absolute"
+        zIndex={6}
+        bg={colors.brand.lightAlphaGray}
+        color={colors.brand.darkGreen}
+        left={tooltip.x}
+        top={tooltip.y}
+        fontSize="x-small"
+        p={2}
+        w="300px"
+        ml="-150px"
+        borderRadius={2}
+        _before={{
+          content: '""',
+          display: 'block',
+          position: 'absolute',
+          left: '50%',
+          marginLeft: '-5px',
+          bottom: '-5px',
+          width: 0,
+          borderLeft: '5px solid transparent',
+          borderRight: '5px solid transparent',
+          borderTop: `5px solid ${colors.brand.lightAlphaGray}`,
+        }}
+      >
+        {tooltip.content}
+      </Box>
       <div ref={ref} />
     </Box>
   );
