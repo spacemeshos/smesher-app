@@ -32,6 +32,7 @@ import useSmesherConnection from '../store/useSmesherConnection';
 import useSmesherStates from '../store/useSmesherStates';
 import { SECOND } from '../utils/constants';
 import { formatTimestamp } from '../utils/datetime';
+import useRewards from '../store/useRewards';
 
 function OptionalError({
   store,
@@ -58,6 +59,7 @@ function DashboardScreen(): JSX.Element {
   const SmesherStates = useSmesherStates();
   const Eligibilities = useEligibilities();
   const Proposals = useProposals();
+  const Rewards = useRewards();
 
   const nodeStatusStore = getStatusByStore(Node);
   const nodeStatusBulb =
@@ -255,11 +257,16 @@ function DashboardScreen(): JSX.Element {
                             2
                           )}
                         </pre>
-                      </Box>
-                      <Box w="35%">
+                        <Divider />
                         <Heading fontSize="sm">Proposals</Heading>
                         <pre style={{ fontSize: '12px' }}>
                           {JSON.stringify(Proposals?.data?.[id] || {}, null, 2)}
+                        </pre>
+                      </Box>
+                      <Box w="35%">
+                        <Heading fontSize="sm">Rewards</Heading>
+                        <pre style={{ fontSize: '12px' }}>
+                          {JSON.stringify(Rewards?.data?.[id] || {}, null, 2)}
                         </pre>
                       </Box>
                     </Flex>

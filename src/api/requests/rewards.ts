@@ -1,21 +1,21 @@
-import { Bech32Address } from '../../types/common';
+import { HexString } from '../../types/common';
 import { Reward } from '../../types/reward';
-import { fromBase64 } from '../../utils/base64';
-import { toHexString } from '../../utils/hexString';
+import { fromBase64, toBase64 } from '../../utils/base64';
+import { fromHexString, toHexString } from '../../utils/hexString';
 import getFetchAll from '../getFetchAll';
 import { parseResponse } from '../schemas/error';
 import { RewardsListSchema } from '../schemas/rewards';
 
 export const fetchRewardsChunk = (
   rpc: string,
-  address: Bech32Address,
+  smesher: HexString,
   limit = 100,
   offset = 0
 ) =>
   fetch(`${rpc}/spacemesh.v2alpha1.RewardService/List`, {
     method: 'POST',
     body: JSON.stringify({
-      coinbase: address,
+      smesher: toBase64(fromHexString(smesher)),
       limit,
       offset,
     }),
@@ -36,4 +36,4 @@ export const fetchRewardsChunk = (
       )
     );
 
-export const fetchRewardsByAddress = getFetchAll(fetchRewardsChunk, 100);
+export const fetchRewardsBySmesherId = getFetchAll(fetchRewardsChunk, 100);
