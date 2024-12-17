@@ -8,6 +8,8 @@ import { colors } from '../../theme';
 import { getAbbreviatedHexString } from '../../utils/abbr';
 import { SECOND } from '../../utils/constants';
 
+import TimelineItemDetails from './TimelineItemContent';
+
 import 'vis-timeline/dist/vis-timeline-graph2d.min.css';
 import './styles.css';
 
@@ -242,6 +244,7 @@ export default function SmeshingTimeline() {
                           : ''}
                       </Text>
                     )}
+                    <TimelineItemDetails item={item} />
                   </div>
                 );
               })}

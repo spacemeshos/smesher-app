@@ -1,3 +1,4 @@
+import { EventName } from '../api/schemas/smesherEvents';
 import { SECOND } from './constants';
 
 export const getCurrentEpochByLayer = (
@@ -26,8 +27,7 @@ export const getEpochEndTime = (
   layerDuration: number,
   layersPerEpoch: number,
   epoch: number
-) =>
-  getLayerEndTime(layerDuration, getEpochLastLayer(layersPerEpoch, epoch));
+) => getLayerEndTime(layerDuration, getEpochLastLayer(layersPerEpoch, epoch));
 export const getTimeToNextEpochStart = (
   layerDuration: number,
   layersPerEpoch: number,
@@ -42,3 +42,42 @@ export const getEpochDuration = (
   layerDuration: number,
   layersPerEpoch: number
 ) => layersPerEpoch * layerDuration * SECOND;
+
+// Stuff for UX
+export const getSmesherEventTitle = (eventName: EventName) => {
+  switch (eventName) {
+    case EventName.WAIT_FOR_ATX_SYNCED:
+      return 'Wait for ATX sync';
+    case EventName.RETRYING:
+      return 'Retrying...';
+
+    case EventName.WAITING_FOR_POET_REGISTRATION_WINDOW:
+      return 'Waiting for PoET registration';
+    case EventName.POET_CHALLENGE_READY:
+      return 'PoET challenge ready';
+    case EventName.POET_REGISTERED:
+      return 'Registered in PoET';
+    case EventName.WAIT_FOR_POET_ROUND_END:
+      return 'Wait for PoET round end';
+    case EventName.POET_PROOF_RECEIVED:
+      return 'PoET proof received';
+
+    case EventName.GENERATING_POST_PROOF:
+      return 'Generating PoST proof...';
+    case EventName.POST_PROOF_READY:
+      return 'PoST proof is ready';
+
+    case EventName.ATX_READY:
+      return 'ATX is ready';
+    case EventName.ATX_BROADCASTED:
+      return 'ATX is broadcasted';
+
+    case EventName.PROPOSAL_PUBLISHED:
+      return 'Proposal published';
+    case EventName.PROPOSAL_PUBLISH_FAILED:
+      return 'Proposal publish failed';
+    case EventName.UNSPECIFIED:
+    default:
+      return 'Unknown event';
+  }
+};

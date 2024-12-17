@@ -4,7 +4,7 @@ import { Base64Schema } from './common';
 import { BigIntStringSchema } from './strNumber';
 
 // Event names
-export enum SmesherEventName {
+export enum EventName {
   UNSPECIFIED = 'UNSPECIFIED',
 
   WAIT_FOR_ATX_SYNCED = 'WAIT_FOR_ATX_SYNCED',
@@ -26,23 +26,31 @@ export enum SmesherEventName {
   PROPOSAL_PUBLISH_FAILED = 'PROPOSAL_PUBLISH_FAILED',
 }
 
-// Utils
+// Factory
 
-const SmesherHistoryItem = (
-  state: SmesherEventName,
-  key?: string,
-  detailsSchema?: z.ZodTypeAny
-) =>
+const BaseEventSchema = <K extends EventName>(eventName: K) =>
   z.object({
-    state: z.literal(state),
+    state: z.literal(eventName),
     publishEpoch: z.optional(z.number()),
     time: z.string().datetime(),
-    ...(key && detailsSchema
-      ? {
-          [key]: z.optional(detailsSchema),
-        }
-      : {}),
   });
+
+function SmesherHistoryItem<T extends z.ZodRawShape>(
+  state: EventName,
+  detailsSchema: z.ZodObject<T>
+): z.ZodObject<
+  {
+    state: z.ZodLiteral<EventName>;
+    publishEpoch?: z.ZodOptional<z.ZodNumber>;
+    time: z.ZodString;
+  } & T
+> {
+  const baseSchema = BaseEventSchema(state);
+  return z.object({
+    ...baseSchema.shape,
+    ...detailsSchema.shape,
+  });
+}
 
 // Details schemas
 
@@ -55,116 +63,210 @@ const PoETRegistrationSchema = z.object({
 
 // Event schemas
 
-export const Unspecified = SmesherHistoryItem(SmesherEventName.UNSPECIFIED);
-export type UnspecifiedEvent = z.infer<typeof Unspecified>;
-
-export const WaitForAtxSynced = SmesherHistoryItem(
-  SmesherEventName.WAIT_FOR_ATX_SYNCED,
-  'waitForAtxSynced',
+export const Unspecified = SmesherHistoryItem(
+  EventName.UNSPECIFIED,
   z.object({})
 );
+export type UnspecifiedEvent = z.infer<typeof Unspecified>;
+export type UnspecifiedEventDetails = undefined;
+
+export const WaitForAtxSynced = SmesherHistoryItem(
+  EventName.WAIT_FOR_ATX_SYNCED,
+  z.object({ waitForAtxSynced: z.optional(z.object({})) })
+);
 export type WaitForAtxSyncedEvent = z.infer<typeof WaitForAtxSynced>;
+export type WaitForAtxSyncedEventDetails =
+  WaitForAtxSyncedEvent['waitForAtxSynced'];
 
 export const Retrying = SmesherHistoryItem(
-  SmesherEventName.RETRYING,
-  'retrying',
+  EventName.RETRYING,
   z.object({
-    message: z.string(),
+    retrying: z.object({
+      message: z.string(),
+    }),
   })
 );
 export type RetryingEvent = z.infer<typeof Retrying>;
+export type RetryingEventDetails = RetryingEvent['retrying'];
 
 export const WaitingForPoetRegistrationWindow = SmesherHistoryItem(
-  SmesherEventName.WAITING_FOR_POET_REGISTRATION_WINDOW,
-  'waitingForPoetRegistrationWindow',
-  z.object({})
+  EventName.WAITING_FOR_POET_REGISTRATION_WINDOW,
+  z.object({ waitingForPoetRegistrationWindow: z.optional(z.object({})) })
 );
 export type WaitingForPoetRegistrationWindowEvent = z.infer<
   typeof WaitingForPoetRegistrationWindow
 >;
+export type WaitingForPoetRegistrationWindowEventDetails =
+  WaitingForPoetRegistrationWindowEvent['waitingForPoetRegistrationWindow'];
 
 export const PoetChallengeReady = SmesherHistoryItem(
-  SmesherEventName.POET_CHALLENGE_READY,
-  'poetChallengeReady',
-  z.object({})
+  EventName.POET_CHALLENGE_READY,
+  z.object({ poetChallengeReady: z.optional(z.object({})) })
 );
 export type PoetChallengeReadyEvent = z.infer<typeof PoetChallengeReady>;
+export type PoetChallengeReadyEventDetails =
+  PoetChallengeReadyEvent['poetChallengeReady'];
 
 export const PoetRegistered = SmesherHistoryItem(
-  SmesherEventName.POET_REGISTERED,
-  'poetRegistered',
+  EventName.POET_REGISTERED,
   z.object({
-    registrations: z.array(PoETRegistrationSchema),
+    poetRegistered: z.object({
+      registrations: z.array(PoETRegistrationSchema),
+    }),
   })
 );
 export type PoetRegisteredEvent = z.infer<typeof PoetRegistered>;
+export type PoetRegisteredEventDetails = PoetRegisteredEvent['poetRegistered'];
 
 export const WaitForPoetRoundEnd = SmesherHistoryItem(
-  SmesherEventName.WAIT_FOR_POET_ROUND_END,
-  'waitForPoetRoundEnd',
+  EventName.WAIT_FOR_POET_ROUND_END,
   z.object({
-    roundEnd: z.string().datetime(),
-    publishEpochEnd: z.string().datetime(),
+    waitForPoetRoundEnd: z.object({
+      roundEnd: z.string().datetime(),
+      publishEpochEnd: z.string().datetime(),
+    }),
   })
 );
 export type WaitForPoetRoundEndEvent = z.infer<typeof WaitForPoetRoundEnd>;
+export type WaitForPoetRoundEndEventDetails =
+  WaitForPoetRoundEndEvent['waitForPoetRoundEnd'];
 
 export const PoetProofReceived = SmesherHistoryItem(
-  SmesherEventName.POET_PROOF_RECEIVED,
-  'poetProofReceived',
+  EventName.POET_PROOF_RECEIVED,
   z.object({
-    poetUrl: z.string().url(),
+    poetProofReceived: z.object({
+      poetUrl: z.string().url(),
+    }),
   })
 );
 export type PoetProofReceivedEvent = z.infer<typeof PoetProofReceived>;
+export type PoetProofReceivedEventDetails =
+  PoetProofReceivedEvent['poetProofReceived'];
 
 export const GeneratingPostProof = SmesherHistoryItem(
-  SmesherEventName.GENERATING_POST_PROOF,
-  'generatingPostProof',
-  z.object({})
+  EventName.GENERATING_POST_PROOF,
+  z.object({ generatingPostProof: z.optional(z.object({})) })
 );
 export type GeneratingPostProofEvent = z.infer<typeof GeneratingPostProof>;
+export type GeneratingPostProofEventDetails =
+  GeneratingPostProofEvent['generatingPostProof'];
 
 export const PostProofReady = SmesherHistoryItem(
-  SmesherEventName.POST_PROOF_READY,
-  'postProofReady',
-  z.object({})
+  EventName.POST_PROOF_READY,
+  z.object({ postProofReady: z.optional(z.object({})) })
 );
 export type PostProofReadyEvent = z.infer<typeof PostProofReady>;
+export type PostProofReadyEventDetails = PostProofReadyEvent['postProofReady'];
 
 export const AtxReady = SmesherHistoryItem(
-  SmesherEventName.ATX_READY,
-  'atxReady',
-  z.object({})
+  EventName.ATX_READY,
+  z.object({ atxReady: z.optional(z.object({})) })
 );
 export type AtxReadyEvent = z.infer<typeof AtxReady>;
+export type AtxReadyEventDetails = AtxReadyEvent['atxReady'];
 
 export const AtxBroadcasted = SmesherHistoryItem(
-  SmesherEventName.ATX_BROADCASTED,
-  'atxBroadcasted',
+  EventName.ATX_BROADCASTED,
   z.object({
-    atxId: Base64Schema,
+    atxBroadcasted: z.object({
+      atxId: Base64Schema,
+    }),
   })
 );
 export type AtxBroadcastedEvent = z.infer<typeof AtxBroadcasted>;
+export type AtxBroadcastedEventDetails = AtxBroadcastedEvent['atxBroadcasted'];
 
 export const ProposalPublished = SmesherHistoryItem(
-  SmesherEventName.PROPOSAL_PUBLISHED,
-  'proposalPublished',
+  EventName.PROPOSAL_PUBLISHED,
   z.object({
-    proposal: Base64Schema,
-    layer: z.number(),
+    proposalPublished: z.object({
+      proposal: Base64Schema,
+      layer: z.number(),
+    }),
   })
 );
 export type ProposalPublishedEvent = z.infer<typeof ProposalPublished>;
+export type ProposalPublishedEventDetails =
+  ProposalPublishedEvent['proposalPublished'];
 
 export const ProposalPublishFailed = SmesherHistoryItem(
-  SmesherEventName.PROPOSAL_PUBLISH_FAILED,
-  'proposalPublishFailed',
+  EventName.PROPOSAL_PUBLISH_FAILED,
   z.object({
-    layer: BigIntStringSchema,
-    message: z.string(),
-    proposal: Base64Schema,
+    proposalPublishFailed: z.object({
+      layer: BigIntStringSchema,
+      message: z.string(),
+      proposal: Base64Schema,
+    }),
   })
 );
 export type ProposalPublishFailedEvent = z.infer<typeof ProposalPublishFailed>;
+export type ProposalPublishFailedEventDetails =
+  ProposalPublishFailedEvent['proposalPublishFailed'];
+
+// Any types
+export type AnyEvent =
+  | UnspecifiedEvent
+  | WaitForAtxSyncedEvent
+  | RetryingEvent
+  | WaitingForPoetRegistrationWindowEvent
+  | PoetChallengeReadyEvent
+  | PoetRegisteredEvent
+  | WaitForPoetRoundEndEvent
+  | PoetProofReceivedEvent
+  | GeneratingPostProofEvent
+  | PostProofReadyEvent
+  | AtxReadyEvent
+  | AtxBroadcastedEvent
+  | ProposalPublishedEvent
+  | ProposalPublishFailedEvent;
+
+export type AnyEventDetails =
+  | UnspecifiedEventDetails
+  | WaitForAtxSyncedEventDetails
+  | RetryingEventDetails
+  | WaitingForPoetRegistrationWindowEventDetails
+  | PoetChallengeReadyEventDetails
+  | PoetRegisteredEventDetails
+  | WaitForPoetRoundEndEventDetails
+  | PoetProofReceivedEventDetails
+  | GeneratingPostProofEventDetails
+  | PostProofReadyEventDetails
+  | AtxReadyEventDetails
+  | AtxBroadcastedEventDetails
+  | ProposalPublishedEventDetails
+  | ProposalPublishFailedEventDetails;
+
+// Pick details
+export function pickSmesherEventDetails(event: AnyEvent): AnyEventDetails {
+  switch (event.state) {
+    case EventName.WAIT_FOR_ATX_SYNCED:
+      return (event as WaitForAtxSyncedEvent).waitForAtxSynced;
+    case EventName.RETRYING:
+      return (event as RetryingEvent).retrying;
+    case EventName.WAITING_FOR_POET_REGISTRATION_WINDOW:
+      return (event as WaitingForPoetRegistrationWindowEvent)
+        .waitingForPoetRegistrationWindow;
+    case EventName.POET_CHALLENGE_READY:
+      return (event as PoetChallengeReadyEvent).poetChallengeReady;
+    case EventName.POET_REGISTERED:
+      return (event as PoetRegisteredEvent).poetRegistered;
+    case EventName.WAIT_FOR_POET_ROUND_END:
+      return (event as WaitForPoetRoundEndEvent).waitForPoetRoundEnd;
+    case EventName.POET_PROOF_RECEIVED:
+      return (event as PoetProofReceivedEvent).poetProofReceived;
+    case EventName.GENERATING_POST_PROOF:
+      return (event as GeneratingPostProofEvent).generatingPostProof;
+    case EventName.POST_PROOF_READY:
+      return (event as PostProofReadyEvent).postProofReady;
+    case EventName.ATX_READY:
+      return (event as AtxReadyEvent).atxReady;
+    case EventName.ATX_BROADCASTED:
+      return (event as AtxBroadcastedEvent).atxBroadcasted;
+    case EventName.PROPOSAL_PUBLISHED:
+      return (event as ProposalPublishedEvent).proposalPublished;
+    case EventName.PROPOSAL_PUBLISH_FAILED:
+      return (event as ProposalPublishFailedEvent).proposalPublishFailed;
+    default:
+      return {};
+  }
+}

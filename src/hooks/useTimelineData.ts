@@ -4,11 +4,20 @@ import { DataItem } from 'vis-timeline';
 
 import { usePrevious } from '@chakra-ui/react';
 
-import { SmesherState } from '../api/schemas/smesherStates';
+import * as SmesherEvents from '../api/schemas/smesherEvents';
 import useNetworkInfo from '../store/useNetworkInfo';
 import useNodeStatus from '../store/useNodeStatus';
 import usePoETInfo from '../store/usePoETInfo';
 import useSmesherStates from '../store/useSmesherStates';
+import {
+  AnyTimelineDetails,
+  CycleGapDetails,
+  EpochDetails,
+  EventDetails,
+  LayerDetails,
+  PoetRoundDetails,
+  TimelineItem,
+} from '../types/timeline';
 import {
   getCurrentEpochByLayer,
   getEpochDuration,
@@ -16,13 +25,8 @@ import {
   getEpochStartTime,
   getLayerEndTime,
   getLayerStartTime,
+  getSmesherEventTitle,
 } from '../utils/timeline';
-
-type TimelineItem = DataItem & {
-  data: {
-    title: string;
-  };
-};
 
 const getHash = (item: DataItem) =>
   `${item.id}-${item.start}-${item.end}-${item.content}`;
@@ -53,12 +57,12 @@ const useTimelineData = () => {
 
   const epochsToDisplay = currentEpoch + 5;
 
-  const epochs = useMemo<TimelineItem[]>(() => {
+  const epochs = useMemo<TimelineItem<EpochDetails>[]>(() => {
     if (!netInfo) {
-      return <TimelineItem[]>[];
+      return <TimelineItem<EpochDetails>[]>[];
     }
     return new Array(epochsToDisplay).fill(null).map(
-      (_, index): TimelineItem => ({
+      (_, index): TimelineItem<EpochDetails> => ({
         content: `Epoch ${index}`,
         id: `epoch_${index}`,
         group: 'epochs',
@@ -83,14 +87,14 @@ const useTimelineData = () => {
     );
   }, [netInfo, epochsToDisplay]);
 
-  const layers = useMemo<TimelineItem[]>(() => {
+  const layers = useMemo<TimelineItem<LayerDetails>[]>(() => {
     if (!netInfo) {
-      return <TimelineItem[]>[];
+      return <TimelineItem<LayerDetails>[]>[];
     }
 
     const layersToDisplay = epochsToDisplay * netInfo.layersPerEpoch;
     return new Array(layersToDisplay).fill(null).map(
-      (_, index): TimelineItem => ({
+      (_, index): TimelineItem<LayerDetails> => ({
         content: `${index}`,
         id: `layer_${index}`,
         group: 'layers',
@@ -107,16 +111,18 @@ const useTimelineData = () => {
     );
   }, [netInfo, epochsToDisplay]);
 
-  const poetRounds = useMemo<TimelineItem[]>(() => {
+  const poetRounds = useMemo<
+    TimelineItem<PoetRoundDetails | CycleGapDetails>[]
+  >(() => {
     if (!netInfo || !poetInfo) {
-      return <TimelineItem[]>[];
+      return <TimelineItem<PoetRoundDetails>[]>[];
     }
 
     const poetStart = netInfo.genesisTime + poetInfo.config.phaseShift;
 
     const cycleGaps = new Array(epochsToDisplay)
       .fill(null)
-      .map((_, index): TimelineItem => {
+      .map((_, index): TimelineItem<CycleGapDetails> => {
         const start =
           poetStart - poetInfo.config.cycleGap + epochDuration * index;
         const end = start + poetInfo.config.cycleGap;
@@ -136,7 +142,7 @@ const useTimelineData = () => {
 
     const rounds = new Array(epochsToDisplay)
       .fill(null)
-      .map((_, index): TimelineItem => {
+      .map((_, index): TimelineItem<PoetRoundDetails> => {
         const start = poetStart + epochDuration * index;
         const end = start + epochDuration;
         return {
@@ -161,9 +167,9 @@ const useTimelineData = () => {
     return ids.length > 1 ? ids : [];
   }, [smesherStates]);
 
-  const events = useMemo<TimelineItem[]>(() => {
+  const events = useMemo<TimelineItem<SmesherEvents.AnyEventDetails>[]>(() => {
     if (!smesherStates) {
-      return <TimelineItem[]>[];
+      return <TimelineItem<EventDetails>[]>[];
     }
 
     const entries = Object.entries(smesherStates);
@@ -171,19 +177,20 @@ const useTimelineData = () => {
     return entries.flatMap(([id, { history }]) => {
       const group = entries.length > 1 ? `smesher_${id}` : 'events';
       const items = history.map((item) => ({
-        content: item.state,
+        content: getSmesherEventTitle(item.state),
         id: `smeshing_${id}_${item.state}_${item.time}`,
         group,
         subgroup: item.state,
         start: new Date(item.time).getTime(),
         type: 'point',
         className:
-          item.state === SmesherState.RETRYING ||
-          item.state === SmesherState.PROPOSAL_PUBLISH_FAILED
+          item.state === SmesherEvents.EventName.RETRYING ||
+          item.state === SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED
             ? 'smesher-event failure'
             : 'smesher-event',
         data: {
           title: item.state,
+          details: SmesherEvents.pickSmesherEventDetails(item),
         },
       }));
 
@@ -191,7 +198,7 @@ const useTimelineData = () => {
     });
   }, [smesherStates]);
 
-  const items = useMemo<TimelineItem[]>(
+  const items = useMemo<TimelineItem<AnyTimelineDetails>[]>(
     () => [...epochs, ...layers, ...poetRounds, ...events],
     [epochs, events, layers, poetRounds]
   );
