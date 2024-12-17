@@ -180,33 +180,21 @@ export default function SmeshingTimeline() {
       chartRef.current.addCustomTime(0, 'cursor');
       chartRef.current.on('rangechange', () => {
         // update cursor time  position
-        const left = calculateCursorPosition(
-          rootRef.current,
-          cursorTimeRef.current
-        );
         setCursor((prevState) => ({
-          x: left,
+          x: calculateCursorPosition(rootRef.current, cursorTimeRef.current),
           content: prevState.content,
         }));
         // update tooltip position
-        const newTooltipPosition = calculateTooltipPosition(
-          rootRef.current,
-          tooltipRef.current
-        );
         setTooltip((prevState) => ({
-          ...newTooltipPosition,
+          ...calculateTooltipPosition(rootRef.current, tooltipRef.current),
           content: prevState.content,
         }));
       });
       chartRef.current.on('mouseMove', (event) => {
         if (event.time && chartRef.current && cursorTimeRef.current) {
           chartRef.current.setCustomTime(event.time, 'cursor');
-          const left = calculateCursorPosition(
-            rootRef.current,
-            cursorTimeRef.current
-          );
           setCursor({
-            x: left,
+            x: calculateCursorPosition(rootRef.current, cursorTimeRef.current),
             content: (
               <>
                 <Text>
@@ -223,12 +211,8 @@ export default function SmeshingTimeline() {
         }
       });
       chartRef.current.on('select', ({ items }: { items: string[] }) => {
-        const newTooltipPosition = calculateTooltipPosition(
-          rootRef.current,
-          tooltipRef.current
-        );
-        setTooltip({
-          ...newTooltipPosition,
+        setTooltip((prevState) => ({
+          ...prevState,
           content: (
             <>
               {items.map((id) => {
@@ -263,7 +247,16 @@ export default function SmeshingTimeline() {
               })}
             </>
           ),
-        });
+        }));
+
+        // To ensure it will be placed correctly we need to re-update position
+        // on the next tick after changing it's content
+        setTimeout(() => {
+          setTooltip((prevState) => ({
+            ...calculateTooltipPosition(rootRef.current, tooltipRef.current),
+            content: prevState.content,
+          }));
+        }, 0);
       });
       return;
     }
