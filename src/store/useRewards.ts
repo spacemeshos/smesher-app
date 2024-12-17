@@ -21,22 +21,23 @@ const useRewards = () => {
   const identities = Object.keys(data || {});
 
   const fetchRewards = useCallback(
-    (rpc: string) => {
+    async (rpc: string) => {
       if (!identities) return Promise.resolve<RewardsState>({});
-      return Promise.all(
-        identities.map((id) => fetchRewardsBySmesherId(rpc, id))
-      )
-        .then((rewards) => {
-          const result: Record<HexString, Reward[]> = Object.fromEntries(
-            rewards.map((r, i) => [identities[i], r])
-          );
-          store.setData(result);
-          return result;
-        })
-        .catch((err) => {
+      try {
+        const rewards = await Promise.all(
+          identities.map((id) => fetchRewardsBySmesherId(rpc, id))
+        );
+        const result: Record<HexString, Reward[]> = Object.fromEntries(
+          rewards.map((r, i) => [identities[i], r])
+        );
+        store.setData(result);
+        return result;
+      } catch (err) {
+        if (err instanceof Error) {
           store.setError(err);
-          return {};
-        });
+        }
+        return {};
+      }
     },
     [identities, store]
   );
