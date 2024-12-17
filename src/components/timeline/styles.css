@@ -75,6 +75,9 @@
 .smesher-event.vis-point {
   border-top: 1px solid #061A14 !important;
 }
+.smesher-event.vis-item.failure {
+  color: #F54E4E;
+}
 .smesher-event.vis-dot {
   border: 3px solid #3AFFA7;
 }

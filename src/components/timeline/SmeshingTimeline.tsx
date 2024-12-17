@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { DataItem, Timeline, TimelineGroup } from 'vis-timeline';
+import { Timeline, TimelineGroup } from 'vis-timeline';
 
-import { Box, position, Text, usePrevious } from '@chakra-ui/react';
+import { Box, Text, usePrevious } from '@chakra-ui/react';
 
 import useTimelineData from '../../hooks/useTimelineData';
 import { colors } from '../../theme';
@@ -42,6 +42,7 @@ type CursorState = {
 type TooltipState = {
   x: number;
   y: number;
+  arrowX?: number;
   content: null | JSX.Element;
 };
 
@@ -90,33 +91,39 @@ const calculateTooltipPosition = (
   const tooltipBox = tooltipElement.getBoundingClientRect();
   const selectedBox = selected.getBoundingClientRect();
   const left = selectedBox.x - rootBox.left + selectedBox.width / 2;
-  const top = selectedBox.y - rootBox.top - tooltipBox.height;
+  const top = selectedBox.top - rootBox.top - tooltipBox.height;
 
   // Stick to the right edge
   if (left + tooltipBox.width / 2 > window.innerWidth - 33) {
     // If selected item is out of sight
-    if (selectedBox.x > rootBox.x + rootBox.width) {
+    if (selectedBox.x > rootBox.x + rootBox.width - 15) {
       return { x: -1000, y: top };
     }
-    // TODO: Move arrow to point on the selected item
-    return { x: window.innerWidth - tooltipBox.width / 2 - 33, y: top };
+
+    return {
+      x: window.innerWidth - tooltipBox.width / 2 - 33,
+      y: top,
+      arrowX: Math.min(
+        left - (window.innerWidth - tooltipBox.width - 33),
+        tooltipBox.width - 10
+      ),
+    };
   }
 
   // Stick to the left edge
   if (left - tooltipBox.width / 2 < 0) {
     // If selected item is out of sight
     const leftPanel = document.getElementsByClassName('vis-left')[0];
-    if (leftPanel) {
-      const leftPanelBox = leftPanel.getBoundingClientRect();
-      if (selectedBox.x + selectedBox.width < rootBox.x + leftPanelBox.width) {
-        return { x: -1000, y: top };
-      }
-    }
-    if (selectedBox.x + selectedBox.width < rootBox.x) {
+    const leftOffset = leftPanel ? leftPanel.getBoundingClientRect().width : 0;
+    if (selectedBox.x + selectedBox.width < rootBox.x + leftOffset + 15) {
       return { x: -1000, y: top };
     }
-    // TODO: Move arrow to point on the selected item
-    return { x: 0 + tooltipBox.width / 2, y: top };
+
+    return {
+      x: 0 + tooltipBox.width / 2,
+      y: top,
+      arrowX: Math.max(left, leftOffset + 10),
+    };
   }
 
   // In general case
@@ -181,15 +188,13 @@ export default function SmeshingTimeline() {
           x: left,
           content: prevState.content,
         }));
-
         // update tooltip position
-        const pos = calculateTooltipPosition(
+        const newTooltipPosition = calculateTooltipPosition(
           rootRef.current,
           tooltipRef.current
         );
         setTooltip((prevState) => ({
-          x: pos.x,
-          y: pos.y,
+          ...newTooltipPosition,
           content: prevState.content,
         }));
       });
@@ -218,13 +223,12 @@ export default function SmeshingTimeline() {
         }
       });
       chartRef.current.on('select', ({ items }: { items: string[] }) => {
-        const pos = calculateTooltipPosition(
+        const newTooltipPosition = calculateTooltipPosition(
           rootRef.current,
           tooltipRef.current
         );
         setTooltip({
-          x: pos.x,
-          y: pos.y,
+          ...newTooltipPosition,
           content: (
             <>
               {items.map((id) => {
@@ -301,7 +305,7 @@ export default function SmeshingTimeline() {
         bg={colors.brand.green}
         color={colors.brand.darkGreen}
         opacity={0.75}
-        left={cursor.x}
+        left={`${cursor.x}px`}
         fontSize="x-small"
         p={1}
         top="-38px"
@@ -314,26 +318,26 @@ export default function SmeshingTimeline() {
         zIndex={6}
         bg={colors.brand.lightAlphaGray}
         color={colors.brand.darkGreen}
-        left={tooltip.x}
-        top={tooltip.y}
+        left={`${tooltip.x}px`}
+        top={`${tooltip.y}px`}
         fontSize="x-small"
         p={2}
         w="300px"
         ml="-150px"
         borderRadius={2}
-        _before={{
-          content: '""',
-          display: 'block',
-          position: 'absolute',
-          left: '50%',
-          marginLeft: '-5px',
-          bottom: '-5px',
-          width: 0,
-          borderLeft: '5px solid transparent',
-          borderRight: '5px solid transparent',
-          borderTop: `5px solid ${colors.brand.lightAlphaGray}`,
-        }}
       >
+        <div
+          className="tooltip-arrow"
+          style={{
+            position: 'absolute',
+            left: tooltip.arrowX ? `${tooltip.arrowX}px` : '50%',
+            marginLeft: '-5px',
+            bottom: '-5px',
+            borderLeft: '5px solid transparent',
+            borderRight: '5px solid transparent',
+            borderTop: `5px solid ${colors.brand.lightAlphaGray}`,
+          }}
+        />
         {tooltip.content}
       </Box>
       <div ref={ref} />
