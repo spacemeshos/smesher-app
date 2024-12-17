@@ -200,7 +200,7 @@ const useTimelineData = () => {
   const prevHashes = usePrevious(hash);
 
   useEffect(() => {
-    if (dataSetRef.current) {
+    if (dataSetRef.current && prevHashes) {
       // TODO: Replace with better API calls instead of filtering on the client
       const newItems = items.filter((i) => !prevHashes.has(getHash(i)));
       dataSetRef.current.add(newItems);
