@@ -1,4 +1,5 @@
 import { EventName } from '../api/schemas/smesherEvents';
+
 import { SECOND } from './constants';
 
 export const getCurrentEpochByLayer = (

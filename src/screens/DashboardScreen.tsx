@@ -28,11 +28,11 @@ import useNetworkInfo from '../store/useNetworkInfo';
 import useNodeStatus from '../store/useNodeStatus';
 import usePoETInfo from '../store/usePoETInfo';
 import useProposals from '../store/useProposals';
+import useRewards from '../store/useRewards';
 import useSmesherConnection from '../store/useSmesherConnection';
 import useSmesherStates from '../store/useSmesherStates';
 import { SECOND } from '../utils/constants';
 import { formatTimestamp } from '../utils/datetime';
-import useRewards from '../store/useRewards';
 
 function OptionalError({
   store,
