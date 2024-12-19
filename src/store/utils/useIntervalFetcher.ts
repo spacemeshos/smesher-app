@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { FETCH_NODE_STATUS_RETRY } from '../../utils/constants';
+import { FETCH_RETRY } from '../../utils/constants';
 import { noop } from '../../utils/func';
 
 import { DynamicStore } from './createDynamicStore';
@@ -28,16 +28,13 @@ const useIntervalFetcher = <T>(
     };
 
     update();
-    const ival = setInterval(
-      update,
-      data ? layerDuration : FETCH_NODE_STATUS_RETRY
-    );
+    const ival = setInterval(update, data ? layerDuration : FETCH_RETRY);
     return () => clearInterval(ival);
   }, [lastUpdate, seconds, setError, setData, data, fetcher, noApiError]);
 
   useEffect(() => {
     if (noApiError) {
-      setError(new Error('Cannot connect to the API'));
+      setError(new Error('Cannot connect to the API'), true);
     }
   }, [noApiError, setError]);
 

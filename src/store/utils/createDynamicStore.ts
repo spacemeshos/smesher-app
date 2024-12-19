@@ -5,7 +5,7 @@ export type DynamicStore<T> = {
   error: Error | null;
   lastUpdate: number;
   setData: (data: T) => void;
-  setError: (error: Error) => void;
+  setError: (error: Error, noLastUpdate?: boolean) => void;
 };
 
 export type ViewOnlyDynamicStore<T> = {
