@@ -1,0 +1,7 @@
+version: '3.8'
+
+services:
+  app:
+    image: smesher-app
+    ports:
+      - "80:80"

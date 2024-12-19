@@ -12,6 +12,8 @@
     "dev": "vite",
     "cors": "node ./cors.js",
     "build": "tsc && vite build",
+    "docker:build": "docker build -t smesher-app .",
+    "docker:up": "docker-compose up",
     "serve": "vite preview",
     "lint": "eslint src --ext .tsx --ext .ts",
     "lint:fix": "yarn lint --fix",
