@@ -24,3 +24,8 @@ export type TimelineItem<T extends AnyTimelineDetails = AnyTimelineDetails> =
   DataItem & {
     data: ItemData<T>;
   };
+
+export const isEventDetails = (
+  i: TimelineItem
+): i is TimelineItem<EventDetails> =>
+  !!i.data.title && Object.hasOwn(i.data, 'details');

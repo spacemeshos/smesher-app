@@ -12,6 +12,7 @@ import TimelineItemDetails from './TimelineItemContent';
 
 import 'vis-timeline/dist/vis-timeline-graph2d.min.css';
 import './styles.css';
+import { TimelineItem } from '../../types/timeline';
 
 const DEFAULT_ZOOM_MAX = 60 * SECOND * 60 * 24 * 365; // Year
 
@@ -139,7 +140,6 @@ export default function SmeshingTimeline() {
   const cursorTimeRef = useRef<HTMLDivElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const data = useTimelineData();
-  const prevItems = usePrevious(data.items);
   const prevGroups = usePrevious(data.nestedEventGroups);
   const [zoomedIn, setZoomedIn] = useState(false);
   const [cursor, setCursor] = useState<CursorState>({
@@ -156,7 +156,7 @@ export default function SmeshingTimeline() {
     if (!ref.current) return;
 
     if (!chartRef.current) {
-      chartRef.current = new Timeline(ref.current, [], getGroups([]), {
+      chartRef.current = new Timeline(ref.current, data.items, getGroups([]), {
         autoResize: true,
         showCurrentTime: true,
         preferZoom: true,
@@ -218,7 +218,7 @@ export default function SmeshingTimeline() {
           content: (
             <>
               {items.map((id) => {
-                const item = data.items.get(id);
+                const item = data.items.get(id) as TimelineItem;
                 if (!item) {
                   return 'Unknown item';
                 }
@@ -264,10 +264,6 @@ export default function SmeshingTimeline() {
       return;
     }
 
-    if (prevItems !== data.items) {
-      chartRef.current.setItems(data.items);
-    }
-
     if (!zoomedIn && data.epochDuration) {
       chartRef.current.setOptions({
         zoomMax: data.epochDuration * 5,
@@ -289,7 +285,6 @@ export default function SmeshingTimeline() {
     data.items,
     data.nestedEventGroups,
     prevGroups,
-    prevItems,
     zoomedIn,
   ]);
   return (

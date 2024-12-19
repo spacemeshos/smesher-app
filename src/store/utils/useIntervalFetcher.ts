@@ -37,7 +37,7 @@ const useIntervalFetcher = <T>(
 
   useEffect(() => {
     if (noApiError) {
-      setError(new Error('Cannot connect to the API'), true);
+      setError(new Error('Cannot connect to the API'));
     }
   }, [noApiError, setError]);
 
