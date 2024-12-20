@@ -220,7 +220,7 @@ export type AnyEvent =
   | ProposalPublishedEvent
   | ProposalPublishFailedEvent;
 
-export type AnyEventDetails =
+export type AnyEventDetailsPayload =
   | UnspecifiedEventDetails
   | WaitForAtxSyncedEventDetails
   | RetryingEventDetails
@@ -236,37 +236,44 @@ export type AnyEventDetails =
   | ProposalPublishedEventDetails
   | ProposalPublishFailedEventDetails;
 
+export type AnyEventDetails = { type: EventName } & AnyEventDetailsPayload;
+
 // Pick details
 export function pickSmesherEventDetails(event: AnyEvent): AnyEventDetails {
-  switch (event.state) {
-    case EventName.WAIT_FOR_ATX_SYNCED:
-      return (event as WaitForAtxSyncedEvent).waitForAtxSynced;
-    case EventName.RETRYING:
-      return (event as RetryingEvent).retrying;
-    case EventName.WAITING_FOR_POET_REGISTRATION_WINDOW:
-      return (event as WaitingForPoetRegistrationWindowEvent)
-        .waitingForPoetRegistrationWindow;
-    case EventName.POET_CHALLENGE_READY:
-      return (event as PoetChallengeReadyEvent).poetChallengeReady;
-    case EventName.POET_REGISTERED:
-      return (event as PoetRegisteredEvent).poetRegistered;
-    case EventName.WAIT_FOR_POET_ROUND_END:
-      return (event as WaitForPoetRoundEndEvent).waitForPoetRoundEnd;
-    case EventName.POET_PROOF_RECEIVED:
-      return (event as PoetProofReceivedEvent).poetProofReceived;
-    case EventName.GENERATING_POST_PROOF:
-      return (event as GeneratingPostProofEvent).generatingPostProof;
-    case EventName.POST_PROOF_READY:
-      return (event as PostProofReadyEvent).postProofReady;
-    case EventName.ATX_READY:
-      return (event as AtxReadyEvent).atxReady;
-    case EventName.ATX_BROADCASTED:
-      return (event as AtxBroadcastedEvent).atxBroadcasted;
-    case EventName.PROPOSAL_PUBLISHED:
-      return (event as ProposalPublishedEvent).proposalPublished;
-    case EventName.PROPOSAL_PUBLISH_FAILED:
-      return (event as ProposalPublishFailedEvent).proposalPublishFailed;
-    default:
-      return {};
-  }
+  return {
+    type: event.state,
+    ...(() => {
+      switch (event.state) {
+        case EventName.WAIT_FOR_ATX_SYNCED:
+          return (event as WaitForAtxSyncedEvent).waitForAtxSynced;
+        case EventName.RETRYING:
+          return (event as RetryingEvent).retrying;
+        case EventName.WAITING_FOR_POET_REGISTRATION_WINDOW:
+          return (event as WaitingForPoetRegistrationWindowEvent)
+            .waitingForPoetRegistrationWindow;
+        case EventName.POET_CHALLENGE_READY:
+          return (event as PoetChallengeReadyEvent).poetChallengeReady;
+        case EventName.POET_REGISTERED:
+          return (event as PoetRegisteredEvent).poetRegistered;
+        case EventName.WAIT_FOR_POET_ROUND_END:
+          return (event as WaitForPoetRoundEndEvent).waitForPoetRoundEnd;
+        case EventName.POET_PROOF_RECEIVED:
+          return (event as PoetProofReceivedEvent).poetProofReceived;
+        case EventName.GENERATING_POST_PROOF:
+          return (event as GeneratingPostProofEvent).generatingPostProof;
+        case EventName.POST_PROOF_READY:
+          return (event as PostProofReadyEvent).postProofReady;
+        case EventName.ATX_READY:
+          return (event as AtxReadyEvent).atxReady;
+        case EventName.ATX_BROADCASTED:
+          return (event as AtxBroadcastedEvent).atxBroadcasted;
+        case EventName.PROPOSAL_PUBLISHED:
+          return (event as ProposalPublishedEvent).proposalPublished;
+        case EventName.PROPOSAL_PUBLISH_FAILED:
+          return (event as ProposalPublishFailedEvent).proposalPublishFailed;
+        default:
+          return {};
+      }
+    })(),
+  };
 }

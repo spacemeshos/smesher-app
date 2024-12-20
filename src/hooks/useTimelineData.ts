@@ -17,6 +17,7 @@ import {
   LayerDetails,
   PoetRoundDetails,
   TimelineItem,
+  TimelineItemType,
 } from '../types/timeline';
 import {
   getCurrentEpochByLayer,
@@ -82,6 +83,7 @@ const useTimelineData = () => {
         className: 'epoch',
         data: {
           title: `Epoch ${index}`,
+          type: TimelineItemType.Epoch,
         },
       })
     );
@@ -106,6 +108,7 @@ const useTimelineData = () => {
         className: 'layer',
         data: {
           title: `Layer ${index}`,
+          type: TimelineItemType.Layer,
         },
       })
     );
@@ -136,6 +139,7 @@ const useTimelineData = () => {
           className: 'cycle-gap', // TODO: color by status
           data: {
             title: `CycleGap ${index}`,
+            type: TimelineItemType.CycleGap,
           },
         };
       });
@@ -155,6 +159,7 @@ const useTimelineData = () => {
           className: 'poet-round', // TODO: color by status
           data: {
             title: `PoET Round #${index}`,
+            type: TimelineItemType.PoetRound,
           },
         };
       });
@@ -189,7 +194,8 @@ const useTimelineData = () => {
             ? 'smesher-event failure'
             : 'smesher-event',
         data: {
-          title: item.state,
+          title: getSmesherEventTitle(item.state),
+          type: TimelineItemType.Event,
           details: SmesherEvents.pickSmesherEventDetails(item),
         },
       }));

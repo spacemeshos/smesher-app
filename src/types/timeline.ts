@@ -14,10 +14,18 @@ export type AnyTimelineDetails =
   | CycleGapDetails
   | PoetRoundDetails;
 
+export enum TimelineItemType {
+  Event = 'event',
+  Epoch = 'epoch',
+  Layer = 'layer',
+  CycleGap = 'cycleGap',
+  PoetRound = 'poetRound',
+}
+
 type ItemData<T extends AnyTimelineDetails> = T extends undefined
-  ? { title: string }
+  ? { title: string; type: TimelineItemType }
   : T extends AnyTimelineDetails
-  ? { title: string; details: T }
+  ? { title: string; type: TimelineItemType; details: T }
   : never;
 
 export type TimelineItem<T extends AnyTimelineDetails = AnyTimelineDetails> =
