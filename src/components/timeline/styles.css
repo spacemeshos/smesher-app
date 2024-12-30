@@ -84,3 +84,7 @@
 .smesher-event.vis-dot.failure {
   border: 3px solid #F54E4E;
 }
+
+.vis-group.hidden .layer.vis-item {
+  border-color: transparent !important
+}

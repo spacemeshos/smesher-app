@@ -16,9 +16,20 @@ import './styles.css';
 
 const DEFAULT_ZOOM_MAX = 60 * SECOND * 60 * 24 * 365; // Year
 
-const getGroups = (smesherIds: string[]): TimelineGroup[] => [
+type GetGroupsParams = {
+  smesherIds?: string[];
+  isLayersHidden?: boolean;
+};
+const getGroups = ({
+  smesherIds = [],
+  isLayersHidden = false,
+}: GetGroupsParams): TimelineGroup[] => [
   { id: 'epochs', content: 'Epochs' },
-  { id: 'layers', content: 'Layers' },
+  {
+    id: 'layers',
+    content: 'Layers',
+    className: isLayersHidden ? 'hidden' : '',
+  },
   { id: 'poet', content: 'PoET' },
   {
     id: 'events',
@@ -140,8 +151,12 @@ export default function SmeshingTimeline() {
   const cursorTimeRef = useRef<HTMLDivElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const data = useTimelineData();
-  const prevGroups = usePrevious(data.nestedEventGroups);
+  const [groups, setGroups] = useState(
+    getGroups({ smesherIds: data.nestedEventGroups })
+  );
+  const prevGroups = usePrevious(groups);
   const [zoomedIn, setZoomedIn] = useState(false);
+  const [isLayersHidden, setLayersHidden] = useState(false);
   const [cursor, setCursor] = useState<CursorState>({
     x: -1000,
     content: null,
@@ -156,7 +171,7 @@ export default function SmeshingTimeline() {
     if (!ref.current) return;
 
     if (!chartRef.current) {
-      chartRef.current = new Timeline(ref.current, data.items, getGroups([]), {
+      chartRef.current = new Timeline(ref.current, data.items, getGroups({}), {
         autoResize: true,
         showCurrentTime: true,
         preferZoom: true,
@@ -180,7 +195,7 @@ export default function SmeshingTimeline() {
       });
 
       chartRef.current.addCustomTime(0, 'cursor');
-      chartRef.current.on('rangechange', () => {
+      chartRef.current.on('rangechange', ({ event, byUser, start, end }) => {
         // update cursor time  position
         setCursor((prevState) => ({
           x: calculateCursorPosition(rootRef.current, cursorTimeRef.current),
@@ -191,6 +206,16 @@ export default function SmeshingTimeline() {
           ...calculateTooltipPosition(rootRef.current, tooltipRef.current),
           content: prevState.content,
         }));
+
+        if (byUser && event.type === 'wheel') {
+          // React only on zoom in / zoom out here
+          const layerElements = [...document.getElementsByClassName('layer')];
+          const someLayer = layerElements[Math.floor(layerElements.length / 2)];
+          if (!someLayer) return;
+          const layerWidth = someLayer.clientWidth;
+
+          setLayersHidden(layerWidth < 10);
+        }
       });
       chartRef.current.on('mouseMove', (event) => {
         if (event.time && chartRef.current && cursorTimeRef.current) {
@@ -275,10 +300,6 @@ export default function SmeshingTimeline() {
       }, 1000); // Wait to ensure it were re-rendered
       setZoomedIn(true);
     }
-
-    if (prevGroups !== data.nestedEventGroups) {
-      chartRef.current.setGroups(getGroups(data.nestedEventGroups));
-    }
   }, [
     data.epochDuration,
     data.genesisTime,
@@ -287,6 +308,17 @@ export default function SmeshingTimeline() {
     prevGroups,
     zoomedIn,
   ]);
+
+  useEffect(() => {
+    const newGroups = getGroups({
+      smesherIds: data.nestedEventGroups,
+      isLayersHidden,
+    });
+    if (prevGroups !== newGroups) {
+      setGroups(newGroups);
+      chartRef.current?.setGroups(newGroups);
+    }
+  }, [data.nestedEventGroups, isLayersHidden, prevGroups]);
   return (
     <Box w="100%" pos="relative" ref={rootRef}>
       <Box
