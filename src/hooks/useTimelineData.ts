@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DataSet } from 'vis-data';
 import { DataItem } from 'vis-timeline';
 
@@ -19,11 +19,14 @@ import {
   TimelineItem,
   TimelineItemType,
 } from '../types/timeline';
+import { SECOND } from '../utils/constants';
+import { noop } from '../utils/func';
 import {
   getCurrentEpochByLayer,
   getEpochDuration,
   getEpochEndTime,
   getEpochStartTime,
+  getLayerByTime,
   getLayerEndTime,
   getLayerStartTime,
   getSmesherEventTitle,
@@ -34,20 +37,36 @@ const getHash = (item: DataItem) =>
 
 const useTimelineData = () => {
   const { data: netInfo } = useNetworkInfo();
-  const { data: nodeStatus } = useNodeStatus();
   const { data: poetInfo } = usePoETInfo();
   const { data: smesherStates } = useSmesherStates();
   const dataSetRef = useRef(new DataSet<TimelineItem>());
 
-  const currentEpoch =
-    netInfo && nodeStatus
-      ? getCurrentEpochByLayer(netInfo.layersPerEpoch, nodeStatus.currentLayer)
-      : 0;
+  //
+  // Update current time once per layer
+  //
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  useEffect(() => {
+    if (netInfo) {
+      const interval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, netInfo.layerDuration * SECOND);
+      return () => clearInterval(interval);
+    }
+    return noop;
+  }, [netInfo]);
 
+  //
+  // Calculate layers and epochs
+  //
+  const layerByTime = netInfo
+    ? getLayerByTime(netInfo.layerDuration, netInfo.genesisTime, currentTime)
+    : 0;
+  const currentEpoch = netInfo
+    ? getCurrentEpochByLayer(netInfo.layersPerEpoch, layerByTime)
+    : 0;
   const epochDuration = netInfo
     ? getEpochDuration(netInfo.layerDuration, netInfo.layersPerEpoch)
     : 0;
-
   const currentEpochStartTime = netInfo
     ? getEpochStartTime(
         netInfo.layerDuration,
@@ -55,9 +74,11 @@ const useTimelineData = () => {
         currentEpoch
       )
     : 0;
-
   const epochsToDisplay = currentEpoch + 5;
 
+  //
+  // Compute data for the timeline
+  //
   const epochs = useMemo<TimelineItem<EpochDetails>[]>(() => {
     if (!netInfo) {
       return <TimelineItem<EpochDetails>[]>[];

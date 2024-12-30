@@ -2,6 +2,15 @@ import { EventName } from '../api/schemas/smesherEvents';
 
 import { SECOND } from './constants';
 
+export const getLayerByTime = (
+  layerDuration: number,
+  genesisTime: number,
+  currentTime: number
+): number => {
+  const timeSinceGenesis = currentTime - genesisTime;
+  return Math.floor(timeSinceGenesis / (layerDuration * SECOND));
+};
+
 export const getCurrentEpochByLayer = (
   layersPerEpoch: number,
   curLayer: number
