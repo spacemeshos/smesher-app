@@ -5,6 +5,7 @@ import { Box, Text, usePrevious } from '@chakra-ui/react';
 
 import useTimelineData from '../../hooks/useTimelineData';
 import { colors } from '../../theme';
+import { TimelineItem } from '../../types/timeline';
 import { getAbbreviatedHexString } from '../../utils/abbr';
 import { SECOND } from '../../utils/constants';
 
@@ -12,7 +13,6 @@ import TimelineItemDetails from './TimelineItemContent';
 
 import 'vis-timeline/dist/vis-timeline-graph2d.min.css';
 import './styles.css';
-import { TimelineItem } from '../../types/timeline';
 
 const DEFAULT_ZOOM_MAX = 60 * SECOND * 60 * 24 * 365; // Year
 
