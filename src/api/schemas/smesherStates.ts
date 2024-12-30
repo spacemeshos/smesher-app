@@ -16,6 +16,7 @@ export const SmesherHistoryItemSchema = z.discriminatedUnion('state', [
   SmesherEvent.AtxReady,
   SmesherEvent.AtxBroadcasted,
   SmesherEvent.ProposalPublished,
+  SmesherEvent.ProposalBuildFailed,
   SmesherEvent.ProposalPublishFailed,
   SmesherEvent.Eligible,
 ]);

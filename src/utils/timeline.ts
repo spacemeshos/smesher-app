@@ -77,6 +77,8 @@ export const getSmesherEventTitle = (eventName: EventName) => {
       return 'Proposal published';
     case EventName.PROPOSAL_PUBLISH_FAILED:
       return 'Proposal publish failed';
+    case EventName.PROPOSAL_BUILD_FAILED:
+      return 'Proposal build failed';
     case EventName.ELIGIBLE:
       return 'Eligibility calculated';
     case EventName.UNSPECIFIED:

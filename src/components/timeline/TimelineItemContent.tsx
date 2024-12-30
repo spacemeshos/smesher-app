@@ -3,6 +3,7 @@ import { Box, Text } from '@chakra-ui/react';
 import {
   EventName,
   PoetRegisteredEventDetails,
+  ProposalBuildFailedEventDetails,
   ProposalPublishFailedEventDetails,
   RetryingEventDetails,
 } from '../../api/schemas/smesherEvents';
@@ -45,6 +46,16 @@ function TimelineItemDetails({ item }: { item: TimelineItem }): JSX.Element {
         </Box>
       );
     }
+    case EventName.PROPOSAL_BUILD_FAILED: {
+      const details = item.data.details as ProposalBuildFailedEventDetails;
+      return (
+        <Box mt={2}>
+          <Text>For layer {details.layer}:</Text>
+          <Text color="brand.red">{details.message}</Text>
+        </Box>
+      );
+    }
+
     // Known events with no details (or that we don't need to show)
     case EventName.UNSPECIFIED:
     case EventName.WAIT_FOR_ATX_SYNCED:

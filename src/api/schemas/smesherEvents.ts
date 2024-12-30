@@ -23,6 +23,7 @@ export enum EventName {
   ATX_BROADCASTED = 'ATX_BROADCASTED',
 
   PROPOSAL_PUBLISHED = 'PROPOSAL_PUBLISHED',
+  PROPOSAL_BUILD_FAILED = 'PROPOSAL_BUILD_FAILED',
   PROPOSAL_PUBLISH_FAILED = 'PROPOSAL_PUBLISH_FAILED',
 
   ELIGIBLE = 'ELIGIBLE',
@@ -191,6 +192,19 @@ export type ProposalPublishedEvent = z.infer<typeof ProposalPublished>;
 export type ProposalPublishedEventDetails =
   ProposalPublishedEvent['proposalPublished'];
 
+export const ProposalBuildFailed = SmesherHistoryItem(
+  EventName.PROPOSAL_BUILD_FAILED,
+  z.object({
+    proposalBuildFailed: z.object({
+      layer: z.number(),
+      message: z.string(),
+    }),
+  })
+);
+export type ProposalBuildFailedEvent = z.infer<typeof ProposalBuildFailed>;
+export type ProposalBuildFailedEventDetails =
+  ProposalBuildFailedEvent['proposalBuildFailed'];
+
 export const ProposalPublishFailed = SmesherHistoryItem(
   EventName.PROPOSAL_PUBLISH_FAILED,
   z.object({
@@ -235,6 +249,7 @@ export type AnyEvent =
   | AtxReadyEvent
   | AtxBroadcastedEvent
   | ProposalPublishedEvent
+  | ProposalBuildFailedEvent
   | ProposalPublishFailedEvent
   | EligibleEvent;
 
@@ -252,6 +267,7 @@ export type AnyEventDetailsPayload =
   | AtxReadyEventDetails
   | AtxBroadcastedEventDetails
   | ProposalPublishedEventDetails
+  | ProposalBuildFailedEventDetails
   | ProposalPublishFailedEventDetails
   | EligibleEventDetails;
 
@@ -288,6 +304,8 @@ export function pickSmesherEventDetails(event: AnyEvent): AnyEventDetails {
           return (event as AtxBroadcastedEvent).atxBroadcasted;
         case EventName.PROPOSAL_PUBLISHED:
           return (event as ProposalPublishedEvent).proposalPublished;
+        case EventName.PROPOSAL_BUILD_FAILED:
+          return (event as ProposalBuildFailedEvent).proposalBuildFailed;
         case EventName.PROPOSAL_PUBLISH_FAILED:
           return (event as ProposalPublishFailedEvent).proposalPublishFailed;
         case EventName.ELIGIBLE:
