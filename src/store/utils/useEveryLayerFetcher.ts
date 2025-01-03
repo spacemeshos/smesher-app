@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import useNetworkInfo from '../useNetworkInfo';
 import useSmesherConnection from '../useSmesherConnection';
 
@@ -11,9 +13,13 @@ const useEveryLayerFetcher = <T>(
   const { getConnection } = useSmesherConnection();
   const rpc = getConnection();
   const { data } = useNetworkInfo();
-  const doFetch = rpc
-    ? () => fetcher(rpc)
-    : () => Promise.reject(new Error('Cannot connect to the API'));
+  const doFetch = useMemo(
+    () =>
+      rpc
+        ? () => fetcher(rpc)
+        : () => Promise.reject(new Error('Cannot connect to the API')),
+    [fetcher, rpc]
+  );
 
   // TODO: Wait for the layer beginning and only only then set interval
   useIntervalFetcher(store, doFetch, data?.layerDuration || 0);

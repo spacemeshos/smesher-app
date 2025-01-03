@@ -7,3 +7,5 @@ export type Reward = {
   coinbase: Bech32Address;
   smesher: HexString;
 };
+
+export type RewardsPerIdentity = Record<HexString, Reward[]>;

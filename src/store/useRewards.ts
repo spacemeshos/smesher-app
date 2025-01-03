@@ -1,7 +1,8 @@
-import { useCallback, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 
-import { fetchRewardsBySmesherId } from '../api/requests/rewards';
+import { fetchRewardsBySmesherIds } from '../api/requests/rewards';
+import useWhyDidUpdate from '../hooks/useWhyDidUpdate';
 import { HexString } from '../types/common';
 import { Reward } from '../types/reward';
 
@@ -18,29 +19,30 @@ const useRewardsStore = createDynamicStore<RewardsState>();
 const useRewards = () => {
   const store = useRewardsStore();
   const { data } = useSmesherStates();
-  const identities = Object.keys(data || {});
+  const idsRef = useRef(new Set<HexString>());
+  const [identities, setIdentities] = useState(<HexString[]>[]);
 
-  const fetchRewards = useCallback(
-    async (rpc: string) => {
-      if (!identities) return Promise.resolve<RewardsState>({});
-      try {
-        const rewards = await Promise.all(
-          identities.map((id) => fetchRewardsBySmesherId(rpc, id))
-        );
-        const result: Record<HexString, Reward[]> = Object.fromEntries(
-          rewards.map((r, i) => [identities[i], r])
-        );
-        store.setData(result);
-        return result;
-      } catch (err) {
-        if (err instanceof Error) {
-          store.setError(err);
-        }
-        return {};
+  useEffect(() => {
+    // Update idsRef list
+    if (!data) return;
+    const ids = Object.keys(data);
+    let changed = false;
+    ids.forEach((id) => {
+      if (!idsRef.current.has(id)) {
+        idsRef.current.add(id);
+        changed = true;
       }
-    },
-    [identities, store]
+    });
+    if (changed) {
+      setIdentities(Array.from(idsRef.current));
+    }
+  }, [data]);
+
+  const fetchRewards = useMemo(
+    () => fetchRewardsBySmesherIds(Array.from(identities)),
+    [identities]
   );
+  useWhyDidUpdate('useRewards', { identities, fetchRewards });
   useEveryLayerFetcher(store, fetchRewards);
   return useMemo(() => createViewOnlyDynamicStore(store), [store]);
 };

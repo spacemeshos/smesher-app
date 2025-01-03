@@ -1,5 +1,5 @@
 import { HexString } from '../../types/common';
-import { Reward } from '../../types/reward';
+import { Reward, RewardsPerIdentity } from '../../types/reward';
 import { fromBase64, toBase64 } from '../../utils/base64';
 import { fromHexString, toHexString } from '../../utils/hexString';
 import getFetchAll from '../getFetchAll';
@@ -37,3 +37,14 @@ export const fetchRewardsChunk = (
     );
 
 export const fetchRewardsBySmesherId = getFetchAll(fetchRewardsChunk, 100);
+
+export const fetchRewardsBySmesherIds =
+  (identities: HexString[]) => async (rpc: string) => {
+    const rewards = await Promise.all(
+      identities.map((id) => fetchRewardsBySmesherId(rpc, id))
+    );
+    const result: RewardsPerIdentity = Object.fromEntries(
+      rewards.map((r, i) => [identities[i], r])
+    );
+    return result;
+  };
