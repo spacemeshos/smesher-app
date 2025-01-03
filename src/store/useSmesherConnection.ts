@@ -14,6 +14,7 @@ type Actions = {
 type Selectors = {
   hasConnection: () => boolean;
   getConnection: () => O.Option<string>;
+  refreshConnection: () => void;
 };
 
 const STORE_KEY = 'smesher-connections';
@@ -32,6 +33,15 @@ const useSmesherConnection = create(
         return O.fromNullable(state.jsonRPC);
       },
       hasConnection: () => O.isSome(get().getConnection()),
+      refreshConnection: () => {
+        const { getConnection, setConnection } = get();
+        const connection = getConnection();
+        if (!connection) return;
+        setConnection('');
+        setTimeout(() => {
+          setConnection(connection);
+        }, 1);
+      },
     }),
     {
       name: STORE_KEY,

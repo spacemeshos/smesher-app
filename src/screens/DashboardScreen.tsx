@@ -8,6 +8,7 @@ import {
   AccordionItem,
   AccordionPanel,
   Box,
+  Button,
   Code,
   Divider,
   Flex,
@@ -52,7 +53,7 @@ function OptionalError({
 }
 
 function DashboardScreen(): JSX.Element {
-  const { getConnection } = useSmesherConnection();
+  const { getConnection, refreshConnection } = useSmesherConnection();
   const NetInfo = useNetworkInfo();
   const Node = useNodeStatus();
   const PoET = usePoETInfo();
@@ -82,6 +83,18 @@ function DashboardScreen(): JSX.Element {
         <Box mb={2} w="100%">
           <StatusBulb status={getStatusByStore(Node)} mr={2} />
           Connected to {getConnection()}
+          {Node.error && (
+            <Button
+              as={RLink}
+              variant="link"
+              fontWeight="normal"
+              color="brand.green"
+              ml={2}
+              onClick={refreshConnection}
+            >
+              [Refresh]
+            </Button>
+          )}
           <Link as={RLink} color="brand.red" to="/" ml={2}>
             [Disconnect]
           </Link>
