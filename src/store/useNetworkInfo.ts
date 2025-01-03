@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 
 import { fetchNetworkInfo } from '../api/requests/netinfo';
 import { Network } from '../types/networks';
+import { FETCH_RETRY } from '../utils/constants';
 
 import createDynamicStore, {
   createViewOnlyDynamicStore,
@@ -13,10 +14,10 @@ import useSmesherConnection from './useSmesherConnection';
 const useNetworkInfoStore = createDynamicStore<Network>();
 
 const useNetworkInfo = () => {
-  const { getConnection } = useSmesherConnection();
+  const { jsonRPC: rpc } = useSmesherConnection();
   const store = useNetworkInfoStore();
-  const rpc = getConnection();
 
+  const { setData, setError, error, lastUpdate } = store;
   // Update function
   const update = useCallback(async () => {
     if (!rpc) {
@@ -26,28 +27,49 @@ const useNetworkInfo = () => {
     }
     try {
       const netInfo = await fetchNetworkInfo(rpc);
-      store.setData(netInfo);
+      setData(netInfo);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Cannot fetch network info', err);
       if (err instanceof Error) {
-        store.setError(err);
+        setError(err);
       } else {
-        store.setError(
+        setError(
           new Error(
             `Cannot fetch network info because of unknown error: ${err}`
           )
         );
       }
     }
-  }, [rpc, store]);
+  }, [rpc, setError, setData]);
 
   // Update automatically when the connection changes or on mount
   useEffect(() => {
-    if (rpc && !store.data && !store.error) {
+    if (rpc) {
       update();
     }
-  }, [rpc, store.data, store.error, update]);
+  }, [rpc, update]);
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Update on error
+  useEffect(() => {
+    const now = Date.now();
+    if (rpc && error) {
+      if (lastUpdate + FETCH_RETRY < now) {
+        update();
+      } else {
+        timeoutRef.current = setTimeout(() => {
+          update();
+        }, lastUpdate + FETCH_RETRY - now);
+      }
+    }
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [error, lastUpdate, rpc, update]);
 
   // Provides only NetInfo and update function call
   return useMemo(
