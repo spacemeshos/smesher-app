@@ -23,6 +23,7 @@ const createDynamicStore = <T>() =>
     setError: (error: Error, noLastUpdate = false) =>
       set({
         error,
+        data: null,
         ...(noLastUpdate ? {} : { lastUpdate: Date.now() }),
       }),
   }));
