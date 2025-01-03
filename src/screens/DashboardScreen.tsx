@@ -81,9 +81,9 @@ function DashboardScreen(): JSX.Element {
         overflow="auto"
       >
         <Box mb={2} w="100%">
-          <StatusBulb status={getStatusByStore(Node)} mr={2} />
+          <StatusBulb status={getStatusByStore(NetInfo)} mr={2} />
           Connected to {getConnection()}
-          {Node.error && (
+          {NetInfo.error && (
             <Button
               as={RLink}
               variant="link"
