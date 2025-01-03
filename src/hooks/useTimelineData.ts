@@ -210,6 +210,7 @@ const useTimelineData = () => {
         type: 'point',
         className:
           item.state === SmesherEvents.EventName.RETRYING ||
+          item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED ||
           item.state === SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED
             ? 'smesher-event failure'
             : 'smesher-event',
