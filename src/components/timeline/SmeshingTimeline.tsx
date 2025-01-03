@@ -151,12 +151,10 @@ export default function SmeshingTimeline() {
   const cursorTimeRef = useRef<HTMLDivElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const data = useTimelineData();
-  const [groups, setGroups] = useState(
-    getGroups({ smesherIds: data.nestedEventGroups })
-  );
-  const prevGroups = usePrevious(groups);
+  const prevGroups = usePrevious(data.nestedEventGroups);
   const [zoomedIn, setZoomedIn] = useState(false);
   const [isLayersHidden, setLayersHidden] = useState(false);
+  const prevLayersHidden = usePrevious(isLayersHidden);
   const [cursor, setCursor] = useState<CursorState>({
     x: -1000,
     content: null,
@@ -195,7 +193,7 @@ export default function SmeshingTimeline() {
       });
 
       chartRef.current.addCustomTime(0, 'cursor');
-      chartRef.current.on('rangechange', ({ event, byUser, start, end }) => {
+      chartRef.current.on('rangechange', ({ event, byUser }) => {
         // update cursor time  position
         setCursor((prevState) => ({
           x: calculateCursorPosition(rootRef.current, cursorTimeRef.current),
@@ -305,20 +303,21 @@ export default function SmeshingTimeline() {
     data.genesisTime,
     data.items,
     data.nestedEventGroups,
-    prevGroups,
     zoomedIn,
   ]);
 
   useEffect(() => {
-    const newGroups = getGroups({
-      smesherIds: data.nestedEventGroups,
-      isLayersHidden,
-    });
-    if (prevGroups !== newGroups) {
-      setGroups(newGroups);
+    if (
+      prevGroups !== data.nestedEventGroups ||
+      prevLayersHidden !== isLayersHidden
+    ) {
+      const newGroups = getGroups({
+        smesherIds: data.nestedEventGroups,
+        isLayersHidden,
+      });
       chartRef.current?.setGroups(newGroups);
     }
-  }, [data.nestedEventGroups, isLayersHidden, prevGroups]);
+  }, [data.nestedEventGroups, isLayersHidden, prevGroups, prevLayersHidden]);
   return (
     <Box w="100%" pos="relative" ref={rootRef}>
       <Box
