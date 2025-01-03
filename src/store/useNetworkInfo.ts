@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 
+import { usePrevious } from '@uidotdev/usehooks';
+
 import { fetchNetworkInfo } from '../api/requests/netinfo';
 import { Network } from '../types/networks';
 import { FETCH_RETRY } from '../utils/constants';
@@ -10,11 +12,13 @@ import createDynamicStore, {
   getDynamicStoreDefaults,
 } from './utils/createDynamicStore';
 import useSmesherConnection from './useSmesherConnection';
+import useTimeout from '../hooks/useTimeout';
 
 const useNetworkInfoStore = createDynamicStore<Network>();
 
 const useNetworkInfo = () => {
   const { jsonRPC: rpc } = useSmesherConnection();
+  const prevRPC = usePrevious(rpc);
   const store = useNetworkInfoStore();
 
   const { setData, setError, error, lastUpdate } = store;
@@ -50,26 +54,21 @@ const useNetworkInfo = () => {
     }
   }, [rpc, update]);
 
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryRunner = useTimeout();
   // Update on error
   useEffect(() => {
     const now = Date.now();
-    if (rpc && error) {
+    if (prevRPC !== rpc && error) {
       if (lastUpdate + FETCH_RETRY < now) {
         update();
       } else {
-        timeoutRef.current = setTimeout(() => {
+        retryRunner.set(() => {
           update();
         }, lastUpdate + FETCH_RETRY - now);
       }
     }
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-    };
-  }, [error, lastUpdate, rpc, update]);
+    return retryRunner.stop;
+  }, [error, lastUpdate, prevRPC, retryRunner, rpc, update]);
 
   // Provides only NetInfo and update function call
   return useMemo(

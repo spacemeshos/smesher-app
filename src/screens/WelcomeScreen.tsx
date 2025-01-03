@@ -13,13 +13,11 @@ import { O } from '@mobily/ts-belt';
 import { IconArrowNarrowRight } from '@tabler/icons-react';
 
 import Logo from '../components/basic/Logo';
-import useNetworkInfo from '../store/useNetworkInfo';
 import useSmesherConnection from '../store/useSmesherConnection';
 import { normalizeURL } from '../utils/url';
 
 function WelcomeScreen(): JSX.Element {
-  const { getConnection, setConnection } = useSmesherConnection();
-  const NetInfo = useNetworkInfo();
+  const { getLastConnection, setConnection } = useSmesherConnection();
   const navigate = useNavigate();
   const {
     register,
@@ -34,7 +32,6 @@ function WelcomeScreen(): JSX.Element {
   const submit = handleSubmit(async (data) => {
     setConnection(data.jsonRPC);
     try {
-      await NetInfo.update();
       navigate('/dash');
     } catch (err) {
       if (err instanceof Error) {
@@ -82,7 +79,7 @@ function WelcomeScreen(): JSX.Element {
             {...register('jsonRPC', {
               required: true,
               value: O.getWithDefault(
-                getConnection(),
+                getLastConnection(),
                 'http://localhost:9071/'
               ),
               setValueAs: normalizeURL,

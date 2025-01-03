@@ -1,5 +1,5 @@
 import humanizeDuration from 'humanize-duration';
-import { Link as RLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import {
   Accordion,
@@ -13,7 +13,6 @@ import {
   Divider,
   Flex,
   Heading,
-  Link,
   List,
   ListItem,
   Table,
@@ -53,7 +52,8 @@ function OptionalError({
 }
 
 function DashboardScreen(): JSX.Element {
-  const { getConnection, refreshConnection } = useSmesherConnection();
+  const { setConnection, getConnection, refreshConnection } =
+    useSmesherConnection();
   const NetInfo = useNetworkInfo();
   const Node = useNodeStatus();
   const PoET = usePoETInfo();
@@ -61,6 +61,12 @@ function DashboardScreen(): JSX.Element {
   const Eligibilities = useEligibilities();
   const Proposals = useProposals();
   const Rewards = useRewards();
+  const navigate = useNavigate();
+
+  const disconnect = () => {
+    setConnection('');
+    navigate('/');
+  };
 
   const nodeStatusStore = getStatusByStore(Node);
   const nodeStatusBulb =
@@ -85,7 +91,6 @@ function DashboardScreen(): JSX.Element {
           Connected to {getConnection()}
           {NetInfo.error && (
             <Button
-              as={RLink}
               variant="link"
               fontWeight="normal"
               color="brand.green"
@@ -95,9 +100,15 @@ function DashboardScreen(): JSX.Element {
               [Refresh]
             </Button>
           )}
-          <Link as={RLink} color="brand.red" to="/" ml={2}>
+          <Button
+            variant="link"
+            fontWeight="normal"
+            color="brand.red"
+            ml={2}
+            onClick={disconnect}
+          >
             [Disconnect]
-          </Link>
+          </Button>
         </Box>
         <Divider />
 
