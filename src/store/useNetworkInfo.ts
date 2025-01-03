@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 
 import { usePrevious } from '@uidotdev/usehooks';
 
 import { fetchNetworkInfo } from '../api/requests/netinfo';
+import useTimeout from '../hooks/useTimeout';
 import { Network } from '../types/networks';
 import { FETCH_RETRY } from '../utils/constants';
 
@@ -12,7 +13,6 @@ import createDynamicStore, {
   getDynamicStoreDefaults,
 } from './utils/createDynamicStore';
 import useSmesherConnection from './useSmesherConnection';
-import useTimeout from '../hooks/useTimeout';
 
 const useNetworkInfoStore = createDynamicStore<Network>();
 
