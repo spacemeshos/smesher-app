@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
+import useInterval from '../../hooks/useInterval';
+import useTimeout from '../../hooks/useTimeout';
 import { FETCH_RETRY } from '../../utils/constants';
 
 import { DynamicStore } from './createDynamicStore';
@@ -11,36 +13,24 @@ const useIntervalFetcher = <T>(
 ) => {
   const [noApiError, setNoApiError] = useState(false);
   const { setData, setError } = store;
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const dropTimeout = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  };
-  const dropInterval = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
+  const retryRunner = useTimeout();
+  const periodicRunner = useInterval();
 
   const update = useCallback((): Promise<void> => {
-    dropTimeout();
+    retryRunner.stop();
     return fetcher()
       .then(setData)
       .catch(async (err) => {
         setError(err);
         return new Promise((resolve) => {
-          timeoutRef.current = setTimeout(() => {
-            dropTimeout();
+          retryRunner.set(() => {
+            retryRunner.stop();
             resolve(update());
           }, FETCH_RETRY);
         });
       });
-  }, [fetcher, setData, setError]);
+  }, [fetcher, retryRunner, setData, setError]);
 
   // Update once on mount
   useEffect(() => {
@@ -56,11 +46,11 @@ const useIntervalFetcher = <T>(
   useEffect(() => {
     if (seconds <= 0) {
       setNoApiError(true);
-      return dropInterval;
+      return periodicRunner.stop;
     }
-    intervalRef.current = setInterval(update, seconds * 1000);
-    return dropInterval;
-  }, [seconds, update]);
+    periodicRunner.set(update, seconds * 1000);
+    return periodicRunner.stop;
+  }, [periodicRunner, seconds, update]);
 
   // Display API error
   useEffect(() => {
