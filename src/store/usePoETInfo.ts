@@ -17,9 +17,13 @@ const usePoETInfo = () => {
   const { getConnection } = useSmesherConnection();
   const store = usePoetInfoStore();
   const rpc = getConnection();
-  const doFetch = rpc
-    ? () => fetchPoETInfo(rpc)
-    : () => Promise.reject(new Error('Cannot connect to the API'));
+  const doFetch = useMemo(
+    () =>
+      rpc
+        ? () => fetchPoETInfo(rpc)
+        : () => Promise.reject(new Error('Cannot connect to the API')),
+    [rpc]
+  );
 
   useIntervalFetcher(store, doFetch, 60 * 60); // every hour
   return useMemo(() => createViewOnlyDynamicStore(store), [store]);
