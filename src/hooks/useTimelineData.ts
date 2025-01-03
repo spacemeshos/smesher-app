@@ -6,7 +6,6 @@ import { usePrevious } from '@chakra-ui/react';
 
 import * as SmesherEvents from '../api/schemas/smesherEvents';
 import useNetworkInfo from '../store/useNetworkInfo';
-import useNodeStatus from '../store/useNodeStatus';
 import usePoETInfo from '../store/usePoETInfo';
 import useSmesherStates from '../store/useSmesherStates';
 import {
