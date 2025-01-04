@@ -1,4 +1,5 @@
 import humanizeDuration from 'humanize-duration';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import {
@@ -17,7 +18,9 @@ import {
   ListItem,
   Table,
   TableContainer,
+  Tag,
   Text,
+  Tooltip,
 } from '@chakra-ui/react';
 
 import StatusBulb, { getStatusByStore } from '../components/basic/StatusBulb';
@@ -31,8 +34,10 @@ import useProposals from '../store/useProposals';
 import useRewards from '../store/useRewards';
 import useSmesherConnection from '../store/useSmesherConnection';
 import useSmesherStates from '../store/useSmesherStates';
+import { HexString } from '../types/common';
 import { SECOND } from '../utils/constants';
 import { formatTimestamp } from '../utils/datetime';
+import { formatSmidge } from '../utils/smh';
 
 function OptionalError({
   store,
@@ -76,6 +81,63 @@ function DashboardScreen(): JSX.Element {
       : Node.data?.isSynced
       ? 'ok'
       : 'pending';
+
+  const getEligibilityStats = useCallback(
+    (id: HexString) => {
+      if (!Eligibilities.data) {
+        return { epochs: '??', layers: '??' };
+      }
+
+      const epochs = Eligibilities.data[id]?.epochs ?? {};
+      const epochsAmount = Object.keys(epochs).length;
+      const layers = new Set(
+        Object.values(epochs || {}).flatMap((next) =>
+          next.eligibilities.map((el) => el.layer)
+        )
+      );
+
+      return { epochs: String(epochsAmount), layers: String(layers.size) };
+    },
+    [Eligibilities.data]
+  );
+
+  const getProposalStats = useCallback(
+    (id: HexString) => {
+      if (!Proposals.data) {
+        return 0;
+      }
+
+      const proposals = Proposals.data[id]?.proposals ?? [];
+      return proposals.length;
+    },
+    [Proposals.data]
+  );
+  const getRewardStats = useCallback(
+    (id: HexString) => {
+      if (!Rewards.data) {
+        return { rewards: '??', income: '?? SMH' };
+      }
+
+      const rewards = Rewards.data[id] ?? [];
+      const totalIncome = rewards.reduce(
+        (acc, next) => acc + next.rewardForFees + next.rewardForLayer,
+        0n
+      );
+      return { rewards: rewards.length, income: formatSmidge(totalIncome) };
+    },
+    [Rewards.data]
+  );
+
+  const getPublishedProposalLayers = useCallback(
+    (id: HexString) => {
+      if (!Proposals.data) {
+        return new Set();
+      }
+      const proposals = Proposals.data[id]?.proposals ?? [];
+      return new Set(proposals.map((proposal) => proposal.layer));
+    },
+    [Proposals.data]
+  );
 
   return (
     <>
@@ -255,49 +317,158 @@ function DashboardScreen(): JSX.Element {
           <OptionalError store={Proposals} prefix="Proposals: " />
 
           <Accordion w="100%" defaultIndex={[]} allowToggle>
-            {Object.entries(SmesherStates.data || {}).map(
-              ([id, { history }]) => (
+            {Object.keys(SmesherStates.data || {}).map((id) => {
+              const eligibilityStats = getEligibilityStats(id);
+              const proposalStats = getProposalStats(id);
+              const rewardStats = getRewardStats(id);
+              return (
                 <AccordionItem key={`Accordion_${id}`}>
                   <AccordionButton px={0} fontSize="sm">
-                    <Box as="span" flex="1" textAlign="left">
-                      {id}
+                    <Box flex="1" textAlign="left">
+                      <Text mb={1}>
+                        <Text as="span" fontSize="xs">
+                          Smesher ID:
+                        </Text>
+                        0x{id}
+                      </Text>
+
+                      <Text fontSize="xs" color="gray.500">
+                        Eligible for{' '}
+                        <strong>{eligibilityStats.layers} layers</strong>{' '}
+                        <span>in {eligibilityStats.epochs} epochs</span>
+                      </Text>
+                      <Text fontSize="xs" color="gray.500">
+                        Published <strong>{proposalStats} proposals</strong>
+                      </Text>
+                      <Text fontSize="xs" color="gray.500">
+                        Earned <strong>{rewardStats.income}</strong> in{' '}
+                        {rewardStats.rewards} rewards
+                      </Text>
                     </Box>
                     <AccordionIcon />
                   </AccordionButton>
                   <AccordionPanel px={0} pb={4}>
                     <Flex w="100%" justifyContent="space-between" mb={2}>
-                      <Box w="50%">
-                        <Heading fontSize="sm">History</Heading>
-                        <pre style={{ fontSize: '12px' }}>
-                          {JSON.stringify(history, null, 2)}
-                        </pre>
-                      </Box>
-                      <Box w="25%">
+                      <Box w="55%">
                         <Heading fontSize="sm">Eligibilities</Heading>
-                        <pre style={{ fontSize: '12px' }}>
-                          {JSON.stringify(
-                            Eligibilities?.data?.[id] || {},
-                            null,
-                            2
-                          )}
-                        </pre>
-                        <Divider />
-                        <Heading fontSize="sm">Proposals</Heading>
-                        <pre style={{ fontSize: '12px' }}>
-                          {JSON.stringify(Proposals?.data?.[id] || {}, null, 2)}
-                        </pre>
+                        {Object.entries(
+                          Eligibilities.data?.[id]?.epochs ?? {}
+                        ).map(([epoch, { eligibilities }]) => {
+                          const proposals = getPublishedProposalLayers(id);
+                          return (
+                            <Box
+                              key={`Eligibilities_${id}_${epoch}`}
+                              my={2}
+                              p={3}
+                              borderWidth={1}
+                              borderStyle="solid"
+                              borderColor="brand.darkGray"
+                              borderRadius="lg"
+                            >
+                              <Text fontSize="sm">Epoch {epoch}</Text>
+                              <Text
+                                fontSize="xs"
+                                color="gray.500"
+                                mt={1}
+                                mb={0.5}
+                              >
+                                Layers
+                              </Text>
+                              <Box lineHeight={0}>
+                                {eligibilities
+                                  .sort((a, b) => a.layer - b.layer)
+                                  .map((el) => (
+                                    <Tooltip
+                                      label={
+                                        <>
+                                          <Text fontSize="xs">
+                                            Layer: {el.layer}
+                                          </Text>
+                                          <Text fontSize="xs" mb={1}>
+                                            Weight: {el.count}
+                                          </Text>
+                                          {proposals.has(el.layer) && (
+                                            <Text
+                                              color="brand.darkGreen"
+                                              fontSize="xs"
+                                            >
+                                              Published:{' '}
+                                              {Proposals.data?.[
+                                                id
+                                              ]?.proposals?.find(
+                                                (p) => p.layer === el.layer
+                                              )?.proposal ?? ''}
+                                            </Text>
+                                          )}
+                                        </>
+                                      }
+                                      // eslint-disable-next-line max-len
+                                      key={`Eligibility_${id}_${epoch}_${el.layer}`}
+                                    >
+                                      <Tag
+                                        size="sm"
+                                        mr={0.5}
+                                        mb={0.5}
+                                        {...(proposals.has(el.layer)
+                                          ? { colorScheme: 'green' }
+                                          : {})}
+                                      >
+                                        {el.layer}
+                                      </Tag>
+                                    </Tooltip>
+                                  ))}
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                        {(!Eligibilities.data?.[id] ||
+                          Object.keys(Eligibilities.data?.[id] ?? {}).length ===
+                            0) && (
+                          <Text fontSize="sm" color="gray.500">
+                            No eligible epochs and layers yet
+                          </Text>
+                        )}
                       </Box>
-                      <Box w="35%">
+                      <Box w="40%">
                         <Heading fontSize="sm">Rewards</Heading>
-                        <pre style={{ fontSize: '12px' }}>
-                          {JSON.stringify(Rewards?.data?.[id] || {}, null, 2)}
-                        </pre>
+                        {(Rewards.data?.[id] ?? []).map((reward) => (
+                          <Box
+                            // eslint-disable-next-line max-len
+                            key={`Reward${id}_${reward.layerPaid}_${reward.smesher}`}
+                            my={2}
+                            p={3}
+                            borderWidth={1}
+                            borderStyle="solid"
+                            borderColor="brand.darkGray"
+                            borderRadius="lg"
+                          >
+                            <Text fontSize="sm" color="brand.green">
+                              +
+                              {formatSmidge(
+                                reward.rewardForLayer + reward.rewardForFees
+                              )}
+                              <Text
+                                fontSize="xs"
+                                color="gray.500"
+                                mt={1}
+                                mb={0.5}
+                              >
+                                To: {reward.coinbase}
+                              </Text>
+                            </Text>
+                          </Box>
+                        ))}
+                        {(Rewards.data?.[id] ?? []).length === 0 && (
+                          <Text fontSize="sm" color="gray.500">
+                            No rewards yet
+                          </Text>
+                        )}
                       </Box>
                     </Flex>
                   </AccordionPanel>
                 </AccordionItem>
-              )
-            )}
+              );
+            })}
           </Accordion>
         </Box>
       </Flex>
