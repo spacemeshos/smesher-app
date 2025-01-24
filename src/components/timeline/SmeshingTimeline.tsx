@@ -5,7 +5,11 @@ import { Box, Text, usePrevious } from '@chakra-ui/react';
 
 import useTimelineData from '../../hooks/useTimelineData';
 import { colors } from '../../theme';
-import { TimelineItem } from '../../types/timeline';
+import {
+  IdentityState,
+  IndentityStatus,
+  TimelineItem,
+} from '../../types/timeline';
 import { getAbbreviatedHexString } from '../../utils/abbr';
 import { SECOND } from '../../utils/constants';
 
@@ -144,6 +148,47 @@ const calculateTooltipPosition = (
   return { x: left, y: top };
 };
 
+const getSmesherMarkers = (ids: Record<string, IndentityStatus>) => {
+  const markers = Object.entries(ids).map(([id, { state, details }]) => {
+    const newEl = document.createElement('div');
+    newEl.title = `${details}\n${id}`;
+
+    switch (state) {
+      case IdentityState.IDLE: {
+        newEl.className = 'id-marker idle';
+        newEl.innerText = 'I';
+        break;
+      }
+      case IdentityState.PENDING: {
+        newEl.className = 'id-marker pending';
+        newEl.innerText = 'P';
+        break;
+      }
+      case IdentityState.ELIGIBLE: {
+        newEl.className = 'id-marker eligible';
+        newEl.innerText = 'E';
+        break;
+      }
+      case IdentityState.SUCCESS: {
+        newEl.className = 'id-marker success';
+        newEl.innerText = 'S';
+        break;
+      }
+      case IdentityState.FAILURE: {
+        newEl.className = 'id-marker failed';
+        newEl.innerText = 'F';
+        break;
+      }
+      default: {
+        return null;
+      }
+    }
+
+    return newEl;
+  });
+  return markers;
+};
+
 export default function SmeshingTimeline() {
   const ref = useRef(null);
   const chartRef = useRef<Timeline | null>(null);
@@ -190,6 +235,34 @@ export default function SmeshingTimeline() {
           offset: 0.5,
         },
         stack: false,
+        template: (item) => {
+          if ('details' in item.data && 'identities' in item.data.details) {
+            const tpl = document.createElement('div');
+
+            const title = document.createElement('span');
+            title.innerHTML = item.content;
+
+            const identities = document.createElement('div');
+            identities.className = 'identities';
+
+            getSmesherMarkers(item.data.details.identities).forEach((el) => {
+              if (!el) return;
+              if (typeof el === 'string') {
+                const span = document.createElement('span');
+                span.innerHTML = el;
+                identities.appendChild(span);
+                return;
+              }
+              identities.appendChild(el);
+            });
+
+            tpl.appendChild(title);
+            tpl.appendChild(identities);
+
+            return tpl;
+          }
+          return `<div>${item.content}</div>`;
+        },
       });
 
       chartRef.current.addCustomTime(0, 'cursor');

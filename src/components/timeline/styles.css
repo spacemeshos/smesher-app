@@ -88,3 +88,54 @@
 .vis-group.hidden .layer.vis-item {
   border-color: transparent !important
 }
+
+.epoch.failed, .layer.failed, .poet-round.failed, .cycle-gap.failed {
+  background: #322525;
+}
+.epoch.success, .layer.success, .poet-round.success, .cycle-gap.success {
+  background: #253227;
+}
+
+.identities {
+  display: inline-block;
+  margin-left: 0.5em;
+}
+
+.id-marker  {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  font-size: 0.8em;
+  text-align: center;
+  line-height: 1;
+  border-radius: 100%;
+  background: #7D7B7B;
+  color: #000;
+  border: 1px solid #061A14;
+  text-decoration: none;
+  font-style: normal;
+}
+.id-marker.success {
+  background: #3AFFA7;
+  color: #000;
+}
+.id-marker.idle {
+  background: #434242;
+  color: #000;
+}
+.id-marker.pending {
+  background: #B9B9B9;
+  color: #000;
+}
+.id-marker.failed {
+  background: #F54E4E;
+  color: #000;
+}
+.id-marker.eligible {
+  background: #FFD700;
+  color: #000;
+}
+
+.layer.rewarded {
+  background-color: #3AFFA7;
+}

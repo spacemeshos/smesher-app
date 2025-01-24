@@ -2,11 +2,23 @@ import { DataItem } from 'vis-timeline';
 
 import * as SmesherEvents from '../api/schemas/smesherEvents';
 
+export enum IdentityState {
+  IDLE = 'IDLE',
+  PENDING = 'PENDING',
+  ELIGIBLE = 'ELIGIBLE',
+  SUCCESS = 'SUCCESS',
+  FAILURE = 'FAILURE',
+}
+export type IndentityStatus = {
+  state: IdentityState;
+  details?: string;
+};
+export type IdentityStatuses = { identities: Record<string, IndentityStatus> };
 export type EventDetails = Exclude<SmesherEvents.AnyEventDetails, undefined>;
-export type EpochDetails = undefined;
-export type LayerDetails = undefined;
+export type EpochDetails = IdentityStatuses;
+export type LayerDetails = IdentityStatuses;
 export type CycleGapDetails = undefined;
-export type PoetRoundDetails = undefined;
+export type PoetRoundDetails = IdentityStatuses;
 export type AnyTimelineDetails =
   | EventDetails
   | EpochDetails

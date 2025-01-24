@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 
 import { fetchRewardsBySmesherIds } from '../api/requests/rewards';
-import useWhyDidUpdate from '../hooks/useWhyDidUpdate';
 import { HexString } from '../types/common';
 import { Reward } from '../types/reward';
 
@@ -42,7 +41,6 @@ const useRewards = () => {
     () => fetchRewardsBySmesherIds(Array.from(identities)),
     [identities]
   );
-  useWhyDidUpdate('useRewards', { identities, fetchRewards });
   useEveryLayerFetcher(store, fetchRewards);
   return useMemo(() => createViewOnlyDynamicStore(store), [store]);
 };

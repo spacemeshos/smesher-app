@@ -3,12 +3,12 @@ import * as timeUtils from '../utils/timeline';
 
 describe('Timeline Utils', () => {
   it('getCurrentEpochByLayer', () => {
-    expect(timeUtils.getCurrentEpochByLayer(10, 0)).toBe(0);
-    expect(timeUtils.getCurrentEpochByLayer(10, 10)).toBe(1);
-    expect(timeUtils.getCurrentEpochByLayer(10, 25)).toBe(2);
-    expect(timeUtils.getCurrentEpochByLayer(10, 9)).toBe(0);
+    expect(timeUtils.getEpochByLayer(10, 0)).toBe(0);
+    expect(timeUtils.getEpochByLayer(10, 10)).toBe(1);
+    expect(timeUtils.getEpochByLayer(10, 25)).toBe(2);
+    expect(timeUtils.getEpochByLayer(10, 9)).toBe(0);
 
-    expect(timeUtils.getCurrentEpochByLayer(6, 65)).toBe(10);
+    expect(timeUtils.getEpochByLayer(6, 65)).toBe(10);
   });
 
   it('getEpochFirstLayer', () => {

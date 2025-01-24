@@ -11,10 +11,8 @@ export const getLayerByTime = (
   return Math.floor(timeSinceGenesis / (layerDuration * SECOND));
 };
 
-export const getCurrentEpochByLayer = (
-  layersPerEpoch: number,
-  curLayer: number
-) => Math.floor(curLayer / layersPerEpoch);
+export const getEpochByLayer = (layersPerEpoch: number, layer: number) =>
+  Math.floor(layer / layersPerEpoch);
 
 export const getEpochFirstLayer = (layersPerEpoch: number, epoch: number) =>
   epoch * layersPerEpoch;
@@ -43,7 +41,7 @@ export const getTimeToNextEpochStart = (
   layersPerEpoch: number,
   currentLayer: number
 ) => {
-  const currentEpoch = getCurrentEpochByLayer(layersPerEpoch, currentLayer);
+  const currentEpoch = getEpochByLayer(layersPerEpoch, currentLayer);
   const nextEpoch = currentEpoch + 1;
   const nextEpochStartsAtLayer = getEpochFirstLayer(layersPerEpoch, nextEpoch);
   return (nextEpochStartsAtLayer - currentLayer) * layerDuration * SECOND;

@@ -1,18 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DataSet } from 'vis-data';
-import { DataItem } from 'vis-timeline';
-
-import { usePrevious } from '@chakra-ui/react';
 
 import * as SmesherEvents from '../api/schemas/smesherEvents';
 import useNetworkInfo from '../store/useNetworkInfo';
 import usePoETInfo from '../store/usePoETInfo';
+import useRewards from '../store/useRewards';
 import useSmesherStates from '../store/useSmesherStates';
 import {
-  AnyTimelineDetails,
   CycleGapDetails,
   EpochDetails,
-  EventDetails,
+  IdentityState,
+  IndentityStatus,
   LayerDetails,
   PoetRoundDetails,
   TimelineItem,
@@ -20,10 +18,12 @@ import {
 } from '../types/timeline';
 import { SECOND } from '../utils/constants';
 import { noop } from '../utils/func';
+import { formatSmidge } from '../utils/smh';
 import {
-  getCurrentEpochByLayer,
+  getEpochByLayer,
   getEpochDuration,
   getEpochEndTime,
+  getEpochFirstLayer,
   getEpochStartTime,
   getLayerByTime,
   getLayerEndTime,
@@ -31,14 +31,15 @@ import {
   getSmesherEventTitle,
 } from '../utils/timeline';
 
-const getHash = (item: DataItem) =>
-  `${item.id}-${item.start}-${item.end}-${item.content}`;
-
 const useTimelineData = () => {
   const { data: netInfo } = useNetworkInfo();
   const { data: poetInfo } = usePoETInfo();
   const { data: smesherStates } = useSmesherStates();
+  const { data: rewards } = useRewards();
   const dataSetRef = useRef(new DataSet<TimelineItem>());
+
+  const getData = (id: string) => dataSetRef.current.get(id);
+  const updateData = (data: TimelineItem[]) => dataSetRef.current.update(data);
 
   //
   // Update current time once per layer
@@ -61,7 +62,7 @@ const useTimelineData = () => {
     ? getLayerByTime(netInfo.layerDuration, netInfo.genesisTime, currentTime)
     : 0;
   const currentEpoch = netInfo
-    ? getCurrentEpochByLayer(netInfo.layersPerEpoch, layerByTime)
+    ? getEpochByLayer(netInfo.layersPerEpoch, layerByTime)
     : 0;
   const epochDuration = netInfo
     ? getEpochDuration(netInfo.layerDuration, netInfo.layersPerEpoch)
@@ -73,16 +74,20 @@ const useTimelineData = () => {
         currentEpoch
       )
     : 0;
-  const epochsToDisplay = currentEpoch + 5;
 
   //
   // Compute data for the timeline
   //
-  const epochs = useMemo<TimelineItem<EpochDetails>[]>(() => {
-    if (!netInfo) {
-      return <TimelineItem<EpochDetails>[]>[];
-    }
-    return new Array(epochsToDisplay).fill(null).map(
+  useEffect(() => {
+    if (!netInfo) return;
+    const epochsToDisplay = currentEpoch + 5;
+    const layersToDisplay = epochsToDisplay * netInfo.layersPerEpoch;
+    const smesherEventsById = smesherStates
+      ? Object.entries(smesherStates)
+      : [];
+
+    // Create epochs
+    const epochs = new Array(epochsToDisplay).fill(null).map(
       (_, index): TimelineItem<EpochDetails> => ({
         content: `Epoch ${index}`,
         id: `epoch_${index}`,
@@ -99,23 +104,22 @@ const useTimelineData = () => {
             netInfo.layersPerEpoch,
             index
           ) + netInfo.genesisTime,
+        // eslint-disable-next-line max-len
         // TODO: Color epochs by it's status: general / failed / eligible
         className: 'epoch',
         data: {
           title: `Epoch ${index}`,
           type: TimelineItemType.Epoch,
+          details: {
+            identities: {},
+          },
         },
       })
     );
-  }, [netInfo, epochsToDisplay]);
+    updateData(epochs);
 
-  const layers = useMemo<TimelineItem<LayerDetails>[]>(() => {
-    if (!netInfo) {
-      return <TimelineItem<LayerDetails>[]>[];
-    }
-
-    const layersToDisplay = epochsToDisplay * netInfo.layersPerEpoch;
-    return new Array(layersToDisplay).fill(null).map(
+    // Create layers
+    const layers = new Array(layersToDisplay).fill(null).map(
       (_, index): TimelineItem<LayerDetails> => ({
         content: `${index}`,
         id: `layer_${index}`,
@@ -129,125 +133,358 @@ const useTimelineData = () => {
         data: {
           title: `Layer ${index}`,
           type: TimelineItemType.Layer,
+          details: {
+            identities: {},
+          },
         },
       })
     );
-  }, [netInfo, epochsToDisplay]);
+    updateData(layers);
 
-  const poetRounds = useMemo<
-    TimelineItem<PoetRoundDetails | CycleGapDetails>[]
-  >(() => {
-    if (!netInfo || !poetInfo) {
-      return <TimelineItem<PoetRoundDetails>[]>[];
+    if (poetInfo) {
+      // Create PoET cycle gaps
+      const poetStart = netInfo.genesisTime + poetInfo.config.phaseShift;
+      const cycleGaps = new Array(epochsToDisplay)
+        .fill(null)
+        .map((_, index): TimelineItem<CycleGapDetails> => {
+          const start =
+            poetStart - poetInfo.config.cycleGap + epochDuration * index;
+          const end = start + poetInfo.config.cycleGap;
+          return {
+            content: `CycleGap ${index}`,
+            id: `poet_cycle_gap_${index}`,
+            group: 'poet',
+            subgroup: 'cycleGap',
+            start,
+            end,
+            className: 'cycle-gap', // TODO: color by status
+            data: {
+              title: `CycleGap ${index}`,
+              type: TimelineItemType.CycleGap,
+            },
+          };
+        });
+      updateData(cycleGaps);
+
+      // Create PoET rounds
+      const rounds = new Array(epochsToDisplay)
+        .fill(null)
+        .map((_, index): TimelineItem<PoetRoundDetails> => {
+          const start = poetStart + epochDuration * index;
+          const end = start + epochDuration;
+          return {
+            content: `PoET Round ${index}`,
+            id: `poet_round_${index}`,
+            group: 'poet',
+            subgroup: 'round',
+            start,
+            end,
+            className: 'poet-round', // TODO: color by status
+            data: {
+              title: `PoET Round #${index}`,
+              type: TimelineItemType.PoetRound,
+              details: {
+                identities: {},
+              },
+            },
+          };
+        });
+      updateData(rounds);
+
+      // Events
+      smesherEventsById.forEach(([id, { history }]) => {
+        const group = smesherEventsById.length > 1 ? `smesher_${id}` : 'events';
+        const smesherRewards = rewards ? rewards[id] ?? [] : [];
+
+        history.forEach((item) => {
+          const details = SmesherEvents.pickSmesherEventDetails(item);
+
+          const updated = <TimelineItem[]>[];
+          // Item Computed item's at
+          const atLayer =
+            (new Date(item.time).getTime() - netInfo.genesisTime) /
+            (netInfo.layerDuration * SECOND);
+          const atEpoch = getEpochByLayer(netInfo.layersPerEpoch, atLayer);
+
+          type TimelineItemOpts = {
+            className?: string;
+            content?: string;
+            identities?: Record<string, IndentityStatus>;
+          };
+          const timeLineItem = (
+            prev: TimelineItem,
+            opts: TimelineItemOpts
+          ): TimelineItem => {
+            const identities = {
+              ...(prev.data &&
+              'details' in prev.data &&
+              'identities' in prev.data.details
+                ? prev.data.details.identities
+                : {}),
+              ...opts.identities,
+            };
+            return {
+              ...prev,
+              className: opts.className || prev.className,
+              data: {
+                ...prev.data,
+                details: {
+                  ...(prev.data && 'details' in prev.data
+                    ? prev.data.details
+                    : {}),
+                  identities,
+                },
+              },
+            };
+          };
+
+          // Update epochs and layers
+
+          if (item.state === SmesherEvents.EventName.ELIGIBLE) {
+            const d = details as SmesherEvents.EligibleEventDetails;
+            // Mark eligible / rewarded layers
+            d.layers.forEach((layer) => {
+              const eligibleLayer = getData(`layer_${layer.layer}`);
+              if (eligibleLayer) {
+                if (rewards && rewards[id]) {
+                  const rewarded = rewards[id]?.find(
+                    (r) => r.layerPaid === layer.layer
+                  );
+                  updated.push(
+                    timeLineItem(eligibleLayer, {
+                      className: rewarded ? 'layer success' : 'layer eligible',
+                      identities: {
+                        [id]: rewarded
+                          ? {
+                              state: IdentityState.SUCCESS,
+                              details: `Got reward for Layer ${
+                                layer.layer
+                              }: ${formatSmidge(
+                                rewarded.rewardForFees + rewarded.rewardForLayer
+                              )} to ${rewarded.coinbase} (weight ${
+                                layer.count
+                              })`,
+                            }
+                          : {
+                              state: IdentityState.PENDING,
+                              details: `Eligible in Layer ${layer.layer}`,
+                            },
+                      },
+                      content: layer.layer.toString(),
+                    })
+                  );
+                }
+              }
+            });
+            // Mark eligible epoch
+            if (d.layers[0]?.layer) {
+              const epochNum = getEpochByLayer(
+                netInfo.layersPerEpoch,
+                d.layers[0].layer
+              );
+              const epoch = getData(`epoch_${epochNum}`);
+              if (epoch) {
+                updated.push(
+                  timeLineItem(epoch, {
+                    className: 'epoch eligible',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.ELIGIBLE,
+                        details: `Eligible in Epoch ${epochNum}`,
+                      },
+                    },
+                  })
+                );
+              }
+            }
+          }
+
+          if (
+            item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED ||
+            item.state === SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED
+          ) {
+            const epoch = getData(`epoch_${atEpoch}`);
+            if (epoch) {
+              updated.push(
+                timeLineItem(epoch, {
+                  className: 'epoch failed',
+                  identities: {
+                    [id]: {
+                      state: IdentityState.FAILURE,
+                      details: (
+                        details as
+                          | SmesherEvents.ProposalPublishFailedEventDetails
+                          | SmesherEvents.ProposalBuildFailedEventDetails
+                      ).message,
+                    },
+                  },
+                })
+              );
+            }
+          }
+
+          if (item.state === SmesherEvents.EventName.POET_REGISTERED) {
+            const nextEpoch = atEpoch + 1;
+            const round = getData(
+              `poet_round_${nextEpoch}`
+            ) as TimelineItem<PoetRoundDetails>;
+            if (round) {
+              updated.push(
+                timeLineItem(round, {
+                  className: 'poet-round eligible',
+                  identities: {
+                    [id]: {
+                      state: IdentityState.ELIGIBLE,
+                      details: 'Registered in PoET',
+                    },
+                  },
+                })
+              );
+            }
+          }
+
+          if (
+            item.state ===
+            SmesherEvents.EventName.WAITING_FOR_POET_REGISTRATION_WINDOW
+          ) {
+            // Mark next epoch...
+            const nextEpochNum = atEpoch + 1;
+            const nextEpoch = getData(
+              `epoch_${nextEpochNum}`
+            ) as TimelineItem<EpochDetails>;
+            if (nextEpoch) {
+              if (currentEpoch >= nextEpochNum) {
+                const hasRewardsInEpoch = smesherRewards?.find(
+                  (r) =>
+                    r.layerPaid >=
+                      getEpochFirstLayer(
+                        netInfo.layersPerEpoch,
+                        nextEpochNum
+                      ) &&
+                    r.layerPaid <
+                      getEpochFirstLayer(
+                        netInfo.layersPerEpoch,
+                        nextEpochNum + 1
+                      )
+                );
+                if (hasRewardsInEpoch) {
+                  // Mark epoch as rewarded
+                  updated.push(
+                    timeLineItem(nextEpoch, {
+                      className: 'epoch success',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.SUCCESS,
+                          details: 'Got some rewards in the Epoch',
+                        },
+                      },
+                    })
+                  );
+                } else {
+                  // Mark epoch as failed
+                  updated.push(
+                    timeLineItem(nextEpoch, {
+                      className: 'epoch failed',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.FAILURE,
+                          details: 'Missed PoET registration window',
+                        },
+                      },
+                    })
+                  );
+                }
+              } else {
+                // Mark epoch as pending
+                updated.push(
+                  timeLineItem(nextEpoch, {
+                    className: 'epoch pending',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.PENDING,
+                        details: 'Waiting for PoET registration window',
+                      },
+                    },
+                  })
+                );
+              }
+            }
+
+            // Mark next PoET round...
+            const nextRound = getData(
+              `poet_round_${nextEpochNum}`
+            ) as TimelineItem<PoetRoundDetails>;
+            if (nextRound) {
+              if (currentEpoch > nextEpochNum) {
+                // TODO: Mark as failed or success
+                // updated.push(
+                //   timeLineItem(nextRound, {
+                //     className: 'poet-round pending',
+                //     identities: {
+                //       [id]: {
+                //         state: IdentityState.PENDING,
+                //         details: 'Waiting for PoET registration window',
+                //       },
+                //     },
+                //   })
+                // );
+              } else {
+                // Mark as pending
+                updated.push(
+                  timeLineItem(nextRound, {
+                    className: 'poet-round pending',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.PENDING,
+                        details: 'Waiting for PoET registration window',
+                      },
+                    },
+                  })
+                );
+              }
+            }
+          }
+
+          // Add / update data
+          updateData([
+            ...updated,
+            {
+              content: getSmesherEventTitle(item.state),
+              id: `smeshing_${id}_${item.state}_${item.time}`,
+              group,
+              subgroup: item.state,
+              start: new Date(item.time).getTime(),
+              type: 'point',
+              className:
+                item.state === SmesherEvents.EventName.RETRYING ||
+                item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED ||
+                item.state === SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED
+                  ? 'smesher-event failure'
+                  : 'smesher-event',
+              data: {
+                title: getSmesherEventTitle(item.state),
+                type: TimelineItemType.Event,
+                details,
+              },
+            },
+          ]);
+        });
+      });
+
+      // End of updating data
     }
-
-    const poetStart = netInfo.genesisTime + poetInfo.config.phaseShift;
-
-    const cycleGaps = new Array(epochsToDisplay)
-      .fill(null)
-      .map((_, index): TimelineItem<CycleGapDetails> => {
-        const start =
-          poetStart - poetInfo.config.cycleGap + epochDuration * index;
-        const end = start + poetInfo.config.cycleGap;
-        return {
-          content: `CycleGap ${index}`,
-          id: `poet_cycle_gap_${index}`,
-          group: 'poet',
-          subgroup: 'cycleGap',
-          start,
-          end,
-          className: 'cycle-gap', // TODO: color by status
-          data: {
-            title: `CycleGap ${index}`,
-            type: TimelineItemType.CycleGap,
-          },
-        };
-      });
-
-    const rounds = new Array(epochsToDisplay)
-      .fill(null)
-      .map((_, index): TimelineItem<PoetRoundDetails> => {
-        const start = poetStart + epochDuration * index;
-        const end = start + epochDuration;
-        return {
-          content: `PoET Round ${index}`,
-          id: `poet_round_${index}`,
-          group: 'poet',
-          subgroup: 'round',
-          start,
-          end,
-          className: 'poet-round', // TODO: color by status
-          data: {
-            title: `PoET Round #${index}`,
-            type: TimelineItemType.PoetRound,
-          },
-        };
-      });
-
-    return [...cycleGaps, ...rounds];
-  }, [epochDuration, epochsToDisplay, netInfo, poetInfo]);
+  }, [currentEpoch, epochDuration, netInfo, poetInfo, rewards, smesherStates]);
 
   const nestedEventGroups = useMemo(() => {
     const ids = Object.keys(smesherStates || {});
     return ids.length > 1 ? ids : [];
   }, [smesherStates]);
 
-  const events = useMemo<TimelineItem<SmesherEvents.AnyEventDetails>[]>(() => {
-    if (!smesherStates) {
-      return <TimelineItem<EventDetails>[]>[];
-    }
-
-    const entries = Object.entries(smesherStates);
-
-    return entries.flatMap(([id, { history }]) => {
-      const group = entries.length > 1 ? `smesher_${id}` : 'events';
-      const items = history.map((item) => ({
-        content: getSmesherEventTitle(item.state),
-        id: `smeshing_${id}_${item.state}_${item.time}`,
-        group,
-        subgroup: item.state,
-        start: new Date(item.time).getTime(),
-        type: 'point',
-        className:
-          item.state === SmesherEvents.EventName.RETRYING ||
-          item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED ||
-          item.state === SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED
-            ? 'smesher-event failure'
-            : 'smesher-event',
-        data: {
-          title: getSmesherEventTitle(item.state),
-          type: TimelineItemType.Event,
-          details: SmesherEvents.pickSmesherEventDetails(item),
-        },
-      }));
-
-      return items;
-    });
-  }, [smesherStates]);
-
-  const items = useMemo<TimelineItem<AnyTimelineDetails>[]>(
-    () => [...epochs, ...layers, ...poetRounds, ...events],
-    [epochs, events, layers, poetRounds]
-  );
-
-  const hash = useMemo(() => new Set(items.map(getHash)), [items]);
-  const prevHashes = usePrevious(hash);
-
-  useEffect(() => {
-    if (dataSetRef.current && prevHashes) {
-      // TODO: Replace with better API calls instead of filtering on the client
-      const newItems = items.filter((i) => !prevHashes.has(getHash(i)));
-      dataSetRef.current.add(newItems);
-    }
-  }, [dataSetRef, items, prevHashes]);
-
   return {
     currentEpoch,
     currentEpochStartTime,
     genesisTime: netInfo?.genesisTime,
     epochDuration,
-    epochs,
-    layers,
     items: dataSetRef.current,
     nestedEventGroups,
   };
