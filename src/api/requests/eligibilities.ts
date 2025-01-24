@@ -7,7 +7,7 @@ export const fetchEligibilities = (rpc: string) =>
   fetchJSON(
     `${rpc}/spacemesh.v2alpha1.SmeshingIdentitiesService/Eligibilities`,
     {
-      method: 'POST',
+      method: 'POST', // this is GET in the v2beta
     }
   )
     .then(parseResponse(EligibilitiesResponseSchema))
