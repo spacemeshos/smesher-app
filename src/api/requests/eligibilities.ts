@@ -5,9 +5,9 @@ import { parseResponse } from '../schemas/error';
 // eslint-disable-next-line import/prefer-default-export
 export const fetchEligibilities = (rpc: string) =>
   fetchJSON(
-    `${rpc}/spacemesh.v2alpha1.SmeshingIdentitiesService/Eligibilities`,
+    `${rpc}/spacemesh.v2beta1.SmeshingIdentitiesService/Eligibilities`,
     {
-      method: 'POST',
+      method: 'GET',
     }
   )
     .then(parseResponse(EligibilitiesResponseSchema))

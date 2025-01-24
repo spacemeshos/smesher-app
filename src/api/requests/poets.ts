@@ -6,8 +6,8 @@ import { PoETInfoResponseSchema } from '../schemas/poets';
 
 // eslint-disable-next-line import/prefer-default-export
 export const fetchPoETInfo = (rpc: string) =>
-  fetchJSON(`${rpc}/spacemesh.v2alpha1.SmeshingIdentitiesService/PoetInfo`, {
-    method: 'POST',
+  fetchJSON(`${rpc}/spacemesh.v2beta1.SmeshingIdentitiesService/PoetInfo`, {
+    method: 'GET',
   })
     .then(parseResponse(PoETInfoResponseSchema))
     .then((res) => ({

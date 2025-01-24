@@ -8,8 +8,8 @@ import { NetworkInfoResponseSchema } from '../schemas/network';
 import { NodeStatusSchema, NodeSyncStatus } from '../schemas/node';
 
 export const fetchNetworkInfo = (rpc: string) =>
-  fetchJSON(`${rpc}/spacemesh.v2alpha1.NetworkService/Info`, {
-    method: 'POST',
+  fetchJSON(`${rpc}/spacemesh.v2beta1.NetworkService/Info`, {
+    method: 'GET',
   })
     .then(parseResponse(NetworkInfoResponseSchema))
     .then((res) => ({
@@ -20,7 +20,7 @@ export const fetchNetworkInfo = (rpc: string) =>
     }));
 
 export const fetchNodeStatus = (rpc: string) =>
-  fetchJSON(`${rpc}/spacemesh.v2alpha1.NodeService/Status`, { method: 'POST' })
+  fetchJSON(`${rpc}/spacemesh.v2beta1.NodeService/Status`, { method: 'POST' })
     .then(parseResponse(NodeStatusSchema))
     .then((status) => ({
       connectedPeers: parseInt(status.connectedPeers, 10),
