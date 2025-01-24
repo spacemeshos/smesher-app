@@ -411,37 +411,30 @@ const useTimelineData = () => {
             }
 
             // Mark next PoET round...
-            const nextRound = getData(
-              `poet_round_${nextEpochNum}`
+            const curRound = getData(
+              `poet_round_${atEpoch}`
             ) as TimelineItem<PoetRoundDetails>;
-            if (nextRound) {
-              if (currentEpoch > nextEpochNum) {
-                // TODO: Mark as failed or success
-                // updated.push(
-                //   timeLineItem(nextRound, {
-                //     className: 'poet-round pending',
-                //     identities: {
-                //       [id]: {
-                //         state: IdentityState.PENDING,
-                //         details: 'Waiting for PoET registration window',
-                //       },
-                //     },
-                //   })
-                // );
-              } else {
-                // Mark as pending
-                updated.push(
-                  timeLineItem(nextRound, {
-                    className: 'poet-round pending',
-                    identities: {
-                      [id]: {
-                        state: IdentityState.PENDING,
-                        details: 'Waiting for PoET registration window',
-                      },
+            const nextRound = getData(
+              `poet_round_${atEpoch + 1}`
+            ) as TimelineItem<PoetRoundDetails>;
+            if (curRound && nextRound) {
+              const round =
+                Date.now() < new Date(curRound.start).getTime()
+                  ? curRound
+                  : nextRound;
+              // TODO: Mark as failed or success
+              // Mark as pending
+              updated.push(
+                timeLineItem(round, {
+                  className: 'poet-round pending',
+                  identities: {
+                    [id]: {
+                      state: IdentityState.PENDING,
+                      details: 'Waiting for PoET registration window',
                     },
-                  })
-                );
-              }
+                  },
+                })
+              );
             }
           }
 
