@@ -20,7 +20,7 @@ export const fetchNetworkInfo = (rpc: string) =>
     }));
 
 export const fetchNodeStatus = (rpc: string) =>
-  fetchJSON(`${rpc}/spacemesh.v2beta1.NodeService/Status`, { method: 'POST' })
+  fetchJSON(`${rpc}/spacemesh.v2beta1.NodeService/Status`, { method: 'GET' })
     .then(parseResponse(NodeStatusSchema))
     .then((status) => ({
       connectedPeers: parseInt(status.connectedPeers, 10),
