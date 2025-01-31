@@ -4,8 +4,8 @@ import { ProposalsResponseSchema } from '../schemas/proposals';
 
 // eslint-disable-next-line import/prefer-default-export
 export const fetchProposals = (rpc: string) =>
-  fetchJSON(`${rpc}/spacemesh.v2alpha1.SmeshingIdentitiesService/Proposals`, {
-    method: 'POST',
+  fetchJSON(`${rpc}/spacemesh.v2beta1.SmeshingIdentitiesService/Proposals`, {
+    method: 'GET',
   })
     .then(parseResponse(ProposalsResponseSchema))
     .then((res) => res.proposals);
