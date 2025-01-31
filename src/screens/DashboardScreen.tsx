@@ -26,6 +26,7 @@ import {
 import StatusBulb, { getStatusByStore } from '../components/basic/StatusBulb';
 import TableContents from '../components/basic/TableContents';
 import SmeshingTimeline from '../components/timeline/SmeshingTimeline';
+import useTimelineData from '../hooks/useTimelineData';
 import useEligibilities from '../store/useEligibilities';
 import useNetworkInfo from '../store/useNetworkInfo';
 import useNodeStatus from '../store/useNodeStatus';
@@ -37,6 +38,7 @@ import useSmesherStates from '../store/useSmesherStates';
 import { HexString } from '../types/common';
 import { SECOND } from '../utils/constants';
 import { formatTimestamp } from '../utils/datetime';
+import { sortHexString } from '../utils/hexString';
 import { formatSmidge } from '../utils/smh';
 
 function OptionalError({
@@ -67,6 +69,7 @@ function DashboardScreen(): JSX.Element {
   const Proposals = useProposals();
   const Rewards = useRewards();
   const navigate = useNavigate();
+  const data = useTimelineData();
 
   const disconnect = () => {
     setConnection('');
@@ -317,47 +320,139 @@ function DashboardScreen(): JSX.Element {
           <OptionalError store={Proposals} prefix="Proposals: " />
 
           <Accordion w="100%" defaultIndex={[]} allowToggle>
-            {Object.keys(SmesherStates.data || {}).map((id) => {
-              const eligibilityStats = getEligibilityStats(id);
-              const proposalStats = getProposalStats(id);
-              const rewardStats = getRewardStats(id);
-              return (
-                <AccordionItem key={`Accordion_${id}`}>
-                  <AccordionButton px={0} fontSize="sm">
-                    <Box flex="1" textAlign="left">
-                      <Text mb={1}>
-                        <Text as="span" fontSize="xs">
-                          Smesher ID:
+            {Object.keys(SmesherStates.data || {})
+              .sort(sortHexString)
+              .map((id, index) => {
+                const eligibilityStats = getEligibilityStats(id);
+                const proposalStats = getProposalStats(id);
+                const rewardStats = getRewardStats(id);
+                return (
+                  <AccordionItem key={`Accordion_${id}`}>
+                    <AccordionButton px={0} fontSize="sm">
+                      <Box flex="1" textAlign="left">
+                        <Text mb={0.5}>
+                          <Box
+                            as="span"
+                            className={`id-marker ${
+                              data.smesherMessages[id]?.type ?? ''
+                            }`}
+                            mr={1}
+                          >
+                            {index + 1}
+                          </Box>
+                          {data.smesherMessages[id]?.message ?? ''}
                         </Text>
-                        0x{id}
-                      </Text>
 
-                      <Text fontSize="xs" color="gray.500">
-                        Eligible for{' '}
-                        <strong>{eligibilityStats.layers} layers</strong>{' '}
-                        <span>in {eligibilityStats.epochs} epochs</span>
-                      </Text>
-                      <Text fontSize="xs" color="gray.500">
-                        Published <strong>{proposalStats} proposals</strong>
-                      </Text>
-                      <Text fontSize="xs" color="gray.500">
-                        Earned <strong>{rewardStats.income}</strong> in{' '}
-                        {rewardStats.rewards} rewards
-                      </Text>
-                    </Box>
-                    <AccordionIcon />
-                  </AccordionButton>
-                  <AccordionPanel px={0} pb={4}>
-                    <Flex w="100%" justifyContent="space-between" mb={2}>
-                      <Box w="55%">
-                        <Heading fontSize="sm">Eligibilities</Heading>
-                        {Object.entries(
-                          Eligibilities.data?.[id]?.epochs ?? {}
-                        ).map(([epoch, { eligibilities }]) => {
-                          const proposals = getPublishedProposalLayers(id);
-                          return (
+                        <Text mb={2} color="gray.300">
+                          <Text as="span" fontSize="xs">
+                            Smesher ID:
+                          </Text>
+                          0x{id}
+                        </Text>
+
+                        <Text fontSize="xs" color="gray.500">
+                          Eligible for{' '}
+                          <strong>{eligibilityStats.layers} layers</strong>{' '}
+                          <span>in {eligibilityStats.epochs} epochs</span>
+                        </Text>
+                        <Text fontSize="xs" color="gray.500">
+                          Published <strong>{proposalStats} proposals</strong>
+                        </Text>
+                        <Text fontSize="xs" color="gray.500">
+                          Earned <strong>{rewardStats.income}</strong> in{' '}
+                          {rewardStats.rewards} rewards
+                        </Text>
+                      </Box>
+                      <AccordionIcon />
+                    </AccordionButton>
+                    <AccordionPanel px={0} pb={4}>
+                      <Flex w="100%" justifyContent="space-between" mb={2}>
+                        <Box w="55%">
+                          <Heading fontSize="sm">Eligibilities</Heading>
+                          {Object.entries(
+                            Eligibilities.data?.[id]?.epochs ?? {}
+                          ).map(([epoch, { eligibilities }]) => {
+                            const proposals = getPublishedProposalLayers(id);
+                            return (
+                              <Box
+                                key={`Eligibilities_${id}_${epoch}`}
+                                my={2}
+                                p={3}
+                                borderWidth={1}
+                                borderStyle="solid"
+                                borderColor="brand.darkGray"
+                                borderRadius="lg"
+                              >
+                                <Text fontSize="sm">Epoch {epoch}</Text>
+                                <Text
+                                  fontSize="xs"
+                                  color="gray.500"
+                                  mt={1}
+                                  mb={0.5}
+                                >
+                                  Layers
+                                </Text>
+                                <Box lineHeight={0}>
+                                  {eligibilities
+                                    .sort((a, b) => a.layer - b.layer)
+                                    .map((el) => (
+                                      <Tooltip
+                                        label={
+                                          <>
+                                            <Text fontSize="xs">
+                                              Layer: {el.layer}
+                                            </Text>
+                                            <Text fontSize="xs" mb={1}>
+                                              Weight: {el.count}
+                                            </Text>
+                                            {proposals.has(el.layer) && (
+                                              <Text
+                                                color="brand.darkGreen"
+                                                fontSize="xs"
+                                              >
+                                                Published:{' '}
+                                                {Proposals.data?.[
+                                                  id
+                                                ]?.proposals?.find(
+                                                  (p) => p.layer === el.layer
+                                                )?.proposal ?? ''}
+                                              </Text>
+                                            )}
+                                          </>
+                                        }
+                                        // eslint-disable-next-line max-len
+                                        key={`Eligibility_${id}_${epoch}_${el.layer}`}
+                                      >
+                                        <Tag
+                                          size="sm"
+                                          mr={0.5}
+                                          mb={0.5}
+                                          {...(proposals.has(el.layer)
+                                            ? { colorScheme: 'green' }
+                                            : {})}
+                                        >
+                                          {el.layer}
+                                        </Tag>
+                                      </Tooltip>
+                                    ))}
+                                </Box>
+                              </Box>
+                            );
+                          })}
+                          {(!Eligibilities.data?.[id] ||
+                            Object.keys(Eligibilities.data?.[id] ?? {})
+                              .length === 0) && (
+                            <Text fontSize="sm" color="gray.500">
+                              No eligible epochs and layers yet
+                            </Text>
+                          )}
+                        </Box>
+                        <Box w="40%">
+                          <Heading fontSize="sm">Rewards</Heading>
+                          {(Rewards.data?.[id] ?? []).map((reward) => (
                             <Box
-                              key={`Eligibilities_${id}_${epoch}`}
+                              // eslint-disable-next-line max-len
+                              key={`Reward${id}_${reward.layerPaid}_${reward.smesher}`}
                               my={2}
                               p={3}
                               borderWidth={1}
@@ -365,88 +460,12 @@ function DashboardScreen(): JSX.Element {
                               borderColor="brand.darkGray"
                               borderRadius="lg"
                             >
-                              <Text fontSize="sm">Epoch {epoch}</Text>
-                              <Text
-                                fontSize="xs"
-                                color="gray.500"
-                                mt={1}
-                                mb={0.5}
-                              >
-                                Layers
+                              <Text fontSize="sm" color="brand.green">
+                                +
+                                {formatSmidge(
+                                  reward.rewardForLayer + reward.rewardForFees
+                                )}
                               </Text>
-                              <Box lineHeight={0}>
-                                {eligibilities
-                                  .sort((a, b) => a.layer - b.layer)
-                                  .map((el) => (
-                                    <Tooltip
-                                      label={
-                                        <>
-                                          <Text fontSize="xs">
-                                            Layer: {el.layer}
-                                          </Text>
-                                          <Text fontSize="xs" mb={1}>
-                                            Weight: {el.count}
-                                          </Text>
-                                          {proposals.has(el.layer) && (
-                                            <Text
-                                              color="brand.darkGreen"
-                                              fontSize="xs"
-                                            >
-                                              Published:{' '}
-                                              {Proposals.data?.[
-                                                id
-                                              ]?.proposals?.find(
-                                                (p) => p.layer === el.layer
-                                              )?.proposal ?? ''}
-                                            </Text>
-                                          )}
-                                        </>
-                                      }
-                                      // eslint-disable-next-line max-len
-                                      key={`Eligibility_${id}_${epoch}_${el.layer}`}
-                                    >
-                                      <Tag
-                                        size="sm"
-                                        mr={0.5}
-                                        mb={0.5}
-                                        {...(proposals.has(el.layer)
-                                          ? { colorScheme: 'green' }
-                                          : {})}
-                                      >
-                                        {el.layer}
-                                      </Tag>
-                                    </Tooltip>
-                                  ))}
-                              </Box>
-                            </Box>
-                          );
-                        })}
-                        {(!Eligibilities.data?.[id] ||
-                          Object.keys(Eligibilities.data?.[id] ?? {}).length ===
-                            0) && (
-                          <Text fontSize="sm" color="gray.500">
-                            No eligible epochs and layers yet
-                          </Text>
-                        )}
-                      </Box>
-                      <Box w="40%">
-                        <Heading fontSize="sm">Rewards</Heading>
-                        {(Rewards.data?.[id] ?? []).map((reward) => (
-                          <Box
-                            // eslint-disable-next-line max-len
-                            key={`Reward${id}_${reward.layerPaid}_${reward.smesher}`}
-                            my={2}
-                            p={3}
-                            borderWidth={1}
-                            borderStyle="solid"
-                            borderColor="brand.darkGray"
-                            borderRadius="lg"
-                          >
-                            <Text fontSize="sm" color="brand.green">
-                              +
-                              {formatSmidge(
-                                reward.rewardForLayer + reward.rewardForFees
-                              )}
                               <Text
                                 fontSize="xs"
                                 color="gray.500"
@@ -455,20 +474,19 @@ function DashboardScreen(): JSX.Element {
                               >
                                 To: {reward.coinbase}
                               </Text>
+                            </Box>
+                          ))}
+                          {(Rewards.data?.[id] ?? []).length === 0 && (
+                            <Text fontSize="sm" color="gray.500">
+                              No rewards yet
                             </Text>
-                          </Box>
-                        ))}
-                        {(Rewards.data?.[id] ?? []).length === 0 && (
-                          <Text fontSize="sm" color="gray.500">
-                            No rewards yet
-                          </Text>
-                        )}
-                      </Box>
-                    </Flex>
-                  </AccordionPanel>
-                </AccordionItem>
-              );
-            })}
+                          )}
+                        </Box>
+                      </Flex>
+                    </AccordionPanel>
+                  </AccordionItem>
+                );
+              })}
           </Accordion>
         </Box>
       </Flex>

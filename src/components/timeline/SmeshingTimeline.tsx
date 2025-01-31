@@ -12,6 +12,7 @@ import {
 } from '../../types/timeline';
 import { getAbbreviatedHexString } from '../../utils/abbr';
 import { SECOND } from '../../utils/constants';
+import { sortHexString } from '../../utils/hexString';
 
 import TimelineItemDetails from './TimelineItemContent';
 
@@ -149,43 +150,41 @@ const calculateTooltipPosition = (
 };
 
 const getSmesherMarkers = (ids: Record<string, IndentityStatus>) => {
-  const markers = Object.entries(ids).map(([id, { state, details }]) => {
-    const newEl = document.createElement('div');
-    newEl.title = `${details}\n${id}`;
+  const markers = Object.entries(ids)
+    .sort(([a], [b]) => sortHexString(a, b))
+    .map(([id, { state, details }], index) => {
+      const newEl = document.createElement('div');
+      newEl.title = `${details}\n${id}`;
+      newEl.innerText = String(index + 1);
 
-    switch (state) {
-      case IdentityState.IDLE: {
-        newEl.className = 'id-marker idle';
-        newEl.innerText = 'I';
-        break;
+      switch (state) {
+        case IdentityState.IDLE: {
+          newEl.className = 'id-marker idle';
+          break;
+        }
+        case IdentityState.PENDING: {
+          newEl.className = 'id-marker pending';
+          break;
+        }
+        case IdentityState.ELIGIBLE: {
+          newEl.className = 'id-marker eligible';
+          break;
+        }
+        case IdentityState.SUCCESS: {
+          newEl.className = 'id-marker success';
+          break;
+        }
+        case IdentityState.FAILURE: {
+          newEl.className = 'id-marker failed';
+          break;
+        }
+        default: {
+          return null;
+        }
       }
-      case IdentityState.PENDING: {
-        newEl.className = 'id-marker pending';
-        newEl.innerText = 'P';
-        break;
-      }
-      case IdentityState.ELIGIBLE: {
-        newEl.className = 'id-marker eligible';
-        newEl.innerText = 'E';
-        break;
-      }
-      case IdentityState.SUCCESS: {
-        newEl.className = 'id-marker success';
-        newEl.innerText = 'S';
-        break;
-      }
-      case IdentityState.FAILURE: {
-        newEl.className = 'id-marker failed';
-        newEl.innerText = 'F';
-        break;
-      }
-      default: {
-        return null;
-      }
-    }
 
-    return newEl;
-  });
+      return newEl;
+    });
   return markers;
 };
 
