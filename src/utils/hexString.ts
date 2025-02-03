@@ -25,3 +25,9 @@ export const normalizeHexString = (str: HexString, withPrefix = false) => {
   const trimmed = str.replace(/^0x/, '');
   return withPrefix ? `0x${trimmed}` : trimmed;
 };
+
+export const sortHexString = (a: HexString, b: HexString) => {
+  const aNormalized = normalizeHexString(a);
+  const bNormalized = normalizeHexString(b);
+  return aNormalized.localeCompare(bNormalized);
+};

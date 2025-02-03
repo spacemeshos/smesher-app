@@ -92,9 +92,6 @@
 .epoch.failed, .layer.failed, .poet-round.failed, .cycle-gap.failed {
   background: #322525;
 }
-.epoch.success, .layer.success, .poet-round.success, .cycle-gap.success {
-  background: #253227;
-}
 
 .identities {
   display: inline-block;
@@ -137,5 +134,5 @@
 }
 
 .layer.rewarded {
-  background-color: #3AFFA7;
+  background-color: #236c31;
 }

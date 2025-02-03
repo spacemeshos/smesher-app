@@ -1,4 +1,6 @@
 import { EventName } from '../api/schemas/smesherEvents';
+import { Network } from '../types/networks';
+import { PoETConfig } from '../types/poet';
 
 import { SECOND } from './constants';
 
@@ -50,6 +52,63 @@ export const getEpochDuration = (
   layerDuration: number,
   layersPerEpoch: number
 ) => layersPerEpoch * layerDuration * SECOND;
+
+export const getCycleGapStart = (
+  poetConfig: PoETConfig,
+  netInfo: Network,
+  index: number
+) => {
+  const poetStart = netInfo.genesisTime + poetConfig.phaseShift;
+  const epochDuration = getEpochDuration(
+    netInfo.layerDuration,
+    netInfo.layersPerEpoch
+  );
+  return poetStart - poetConfig.cycleGap + epochDuration * index;
+};
+
+export const getCycleGapEnd = (
+  poetConfig: PoETConfig,
+  netInfo: Network,
+  index: number
+) => getCycleGapStart(poetConfig, netInfo, index) + poetConfig.cycleGap;
+
+export const getPoetRoundStart = (
+  poetConfig: PoETConfig,
+  netInfo: Network,
+  index: number
+) => {
+  const epochDuration = getEpochDuration(
+    netInfo.layerDuration,
+    netInfo.layersPerEpoch
+  );
+  const poetStart = netInfo.genesisTime + poetConfig.phaseShift;
+  return poetStart + epochDuration * index;
+};
+
+export const getPoetRoundEnd = (
+  poetConfig: PoETConfig,
+  netInfo: Network,
+  index: number
+) => {
+  const epochDuration = getEpochDuration(
+    netInfo.layerDuration,
+    netInfo.layersPerEpoch
+  );
+  return getPoetRoundStart(poetConfig, netInfo, index) + epochDuration;
+};
+
+export const getPoetRoundByTime = (
+  poetConfig: PoETConfig,
+  netInfo: Network,
+  time: number
+) => {
+  const epochDuration = getEpochDuration(
+    netInfo.layerDuration,
+    netInfo.layersPerEpoch
+  );
+  const poetStart = netInfo.genesisTime + poetConfig.phaseShift;
+  return Math.floor((time - poetStart) / epochDuration);
+};
 
 // Stuff for UX
 export const getSmesherEventTitle = (eventName: EventName) => {
