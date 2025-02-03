@@ -564,7 +564,7 @@ const useTimelineData = () => {
           });
 
         if (rewards && rewards[id]) {
-          rewards[id].forEach((reward) => {
+          rewards[id]?.forEach((reward) => {
             const layer = getData(`layer_${reward.layerPaid}`);
             if (layer) {
               updated.push(
