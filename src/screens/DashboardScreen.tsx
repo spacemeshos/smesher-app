@@ -340,7 +340,8 @@ function DashboardScreen(): JSX.Element {
                           >
                             {index + 1}
                           </Box>
-                          {data.smesherMessages[id]?.message ?? ''}
+                          {data.smesherMessages[id]?.message ??
+                            'Waiting for the smesher events...'}
                         </Text>
 
                         <Text mb={2} color="gray.300">
