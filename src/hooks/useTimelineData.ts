@@ -291,53 +291,50 @@ const useTimelineData = () => {
                   const rewarded = smesherRewards.find(
                     (r) => r.layerPaid === layer.layer
                   );
+                  const missed = !rewarded && layerByTime > layer.layer;
                   eligibilities[atEpoch] = {
                     ...eligibilities[atEpoch],
                     [layer.layer]: rewarded ? 'rewarded' : 'eligible',
                   };
-                  if (layerByTime > layer.layer && !rewarded) {
-                    updated.push(
-                      updateItem(eligibleLayer, {
-                        className: 'layer failed',
-                        identities: {
-                          [id]: {
-                            state: IdentityState.FAILURE,
-                            details: `Missed reward for Layer ${layer.layer}`,
-                          },
-                        },
-                      })
-                    );
-                  } else {
-                    updated.push(
-                      updateItem(eligibleLayer, {
-                        className: rewarded
-                          ? 'layer success'
-                          : 'layer eligible',
-                        identities: {
-                          [id]: rewarded
-                            ? {
-                                state: IdentityState.SUCCESS,
-                                details: `Got reward for Layer ${
-                                  layer.layer
-                                }: ${formatSmidge(
-                                  // eslint-disable-next-line max-len
-                                  rewarded.rewardForFees +
-                                    rewarded.rewardForLayer
-                                )} to ${rewarded.coinbase} (weight ${
-                                  layer.count
-                                })`,
-                              }
-                            : {
-                                state: IdentityState.ELIGIBLE,
-                                details: `Eligible in Layer ${layer.layer}`,
-                              },
-                        },
-                        content: layer.layer.toString(),
-                      })
-                    );
-                  }
+                  updated.push(
+                    updateItem(eligibleLayer, {
+                      // eslint-disable-next-line no-nested-ternary
+                      className: rewarded
+                        ? 'layer success'
+                        : missed
+                        ? 'layer failed'
+                        : 'layer eligible',
+                      identities: {
+                        // eslint-disable-next-line no-nested-ternary
+                        [id]: rewarded
+                          ? {
+                              state: IdentityState.SUCCESS,
+                              details: `Got reward for Layer ${
+                                layer.layer
+                              }: ${formatSmidge(
+                                // eslint-disable-next-line max-len
+                                rewarded.rewardForFees + rewarded.rewardForLayer
+                              )} to ${rewarded.coinbase} (weight ${
+                                layer.count
+                              })`,
+                            }
+                          : missed
+                          ? {
+                              state: IdentityState.FAILURE,
+                              // eslint-disable-next-line max-len
+                              details: `Missed publishing proposal at layer ${layer.layer}`,
+                            }
+                          : {
+                              state: IdentityState.ELIGIBLE,
+                              details: `Eligible in Layer ${layer.layer}`,
+                            },
+                      },
+                      content: layer.layer.toString(),
+                    })
+                  );
                 }
               });
+
               setMessage(
                 id,
                 'success',
@@ -369,6 +366,28 @@ const useTimelineData = () => {
                   })
                 );
               }
+
+              if (
+                Object.values(eligibilities[atEpoch] ?? {}).every(
+                  (x) => x === 'rewarded'
+                )
+              ) {
+                const epochItem = getData(`epoch_${atEpoch}`);
+                if (epochItem) {
+                  updated.push(
+                    updateItem(epochItem, {
+                      className: 'epoch rewarded',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.SUCCESS,
+                          // eslint-disable-next-line max-len
+                          details: `Got all rewards for epoch ${atEpoch}`,
+                        },
+                      },
+                    })
+                  );
+                }
+              }
             }
 
             if (
@@ -393,6 +412,32 @@ const useTimelineData = () => {
                   })
                 );
               }
+
+              const layer = getData(`layer_${atLayer}`);
+              if (layer) {
+                updated.push(
+                  updateItem(layer, {
+                    className: 'layer failed',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.FAILURE,
+                        details: `${
+                          item.state ===
+                          SmesherEvents.EventName.PROPOSAL_BUILD_FAILED
+                            ? 'Proposal build'
+                            : 'Proposal publish'
+                        } failed: ${
+                          (
+                            details as
+                              | SmesherEvents.ProposalPublishFailedEventDetails
+                              | SmesherEvents.ProposalBuildFailedEventDetails
+                          ).message
+                        }`,
+                      },
+                    },
+                  })
+                );
+              }
             }
 
             if (item.state === SmesherEvents.EventName.GENERATING_POST_PROOF) {
@@ -410,11 +455,11 @@ const useTimelineData = () => {
                 );
                 updated.push(
                   updateItem(epoch, {
-                    className: 'epoch success',
+                    className: 'epoch eligible',
                     identities: {
                       [id]: {
-                        state: IdentityState.PENDING,
-                        details: 'ATX is broadcasted',
+                        state: IdentityState.ELIGIBLE,
+                        details: 'ATX is broadcasted. Waiting for rewards...',
                       },
                     },
                   })
