@@ -428,9 +428,14 @@ function DashboardScreen(): JSX.Element {
                                           size="sm"
                                           mr={0.5}
                                           mb={0.5}
+                                          // eslint-disable-next-line max-len
+                                          // eslint-disable-next-line no-nested-ternary
                                           {...(proposals.has(el.layer)
                                             ? { colorScheme: 'green' }
-                                            : {})}
+                                            : (Node?.data?.currentLayer ?? 0) >=
+                                              el.layer
+                                            ? { colorScheme: 'red' }
+                                            : { colorScheme: 'yellow' })}
                                         >
                                           {el.layer}
                                         </Tag>
