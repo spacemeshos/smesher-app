@@ -432,7 +432,7 @@ function DashboardScreen(): JSX.Element {
                                           // eslint-disable-next-line no-nested-ternary
                                           {...(proposals.has(el.layer)
                                             ? { colorScheme: 'green' }
-                                            : (Node?.data?.currentLayer ?? 0) >=
+                                            : (Node?.data?.currentLayer ?? 0) >
                                               el.layer
                                             ? { colorScheme: 'red' }
                                             : { colorScheme: 'yellow' })}
