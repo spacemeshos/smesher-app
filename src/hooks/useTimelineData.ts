@@ -510,23 +510,62 @@ const useTimelineData = () => {
                 `poet_round_${affectedRound}`
               ) as TimelineItem<PoetRoundDetails>;
               if (round) {
-                setMessage(
-                  id,
-                  'success',
-                  // eslint-disable-next-line max-len
-                  `Registered in PoET round ${affectedRound}`
-                );
-                updated.push(
-                  updateItem(round, {
-                    className: 'poet-round eligible',
-                    identities: {
-                      [id]: {
-                        state: IdentityState.ELIGIBLE,
-                        details: 'Registered in PoET',
+                if (
+                  currentTime >
+                  getPoetRoundEnd(poetInfo.config, netInfo, affectedRound)
+                ) {
+                  setMessage(
+                    id,
+                    'failed',
+                    // eslint-disable-next-line max-len
+                    `Did not received PoET proof for round ${affectedRound} in time. Will not have rewards in epoch ${affectedEpoch}`
+                  );
+                  updated.push(
+                    updateItem(round, {
+                      className: 'poet-round failed',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.FAILURE,
+                          // eslint-disable-next-line max-len
+                          details: `Did not received PoET proof for round ${affectedRound} in time`,
+                        },
                       },
-                    },
-                  })
-                );
+                    })
+                  );
+                  const epoch = getData(`epoch_${affectedEpoch}`);
+                  if (epoch) {
+                    updated.push(
+                      updateItem(epoch, {
+                        className: 'epoch failed',
+                        identities: {
+                          [id]: {
+                            state: IdentityState.FAILURE,
+                            // eslint-disable-next-line max-len
+                            details: `Did not received PoET proof for round ${affectedRound} in time`,
+                          },
+                        },
+                      })
+                    );
+                  }
+                } else {
+                  setMessage(
+                    id,
+                    'success',
+                    // eslint-disable-next-line max-len
+                    `Registered in PoET round ${affectedRound}`
+                  );
+                  updated.push(
+                    updateItem(round, {
+                      className: 'poet-round eligible',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.ELIGIBLE,
+                          details: 'Registered in PoET',
+                        },
+                      },
+                    })
+                  );
+                }
               }
             }
 
