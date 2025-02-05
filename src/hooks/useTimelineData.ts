@@ -98,14 +98,14 @@ const useTimelineData = () => {
   const updateData = (data: TimelineItem[]) => dataSetRef.current.update(data);
 
   //
-  // Update current time once per layer
+  // Update current time twice per layer
   //
   const [currentTime, setCurrentTime] = useState(Date.now());
   useEffect(() => {
     if (netInfo) {
       const interval = setInterval(() => {
         setCurrentTime(Date.now());
-      }, netInfo.layerDuration * SECOND);
+      }, Math.floor((netInfo.layerDuration * SECOND) / 2));
       return () => clearInterval(interval);
     }
     return noop;
@@ -676,6 +676,7 @@ const useTimelineData = () => {
     }
   }, [
     currentEpoch,
+    currentTime,
     epochDuration,
     layerByTime,
     netInfo,
