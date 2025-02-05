@@ -45,7 +45,35 @@ export type TimelineItem<T extends AnyTimelineDetails = AnyTimelineDetails> =
     data: ItemData<T>;
   };
 
-export const isEventDetails = (
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const isTimelineItem = (i: any): i is TimelineItem =>
+  !!i.data.title && Object.hasOwn(i.data, 'type');
+
+export const isEventItem = (i: TimelineItem): i is TimelineItem<EventDetails> =>
+  isTimelineItem(i) &&
+  Object.hasOwn(i.data, 'details') &&
+  i.data.type === TimelineItemType.Event;
+
+export const isEpochItem = (i: TimelineItem): i is TimelineItem<EpochDetails> =>
+  isTimelineItem(i) &&
+  Object.hasOwn(i.data, 'details') &&
+  i.data.type === TimelineItemType.Epoch;
+
+export const isLayerItem = (i: TimelineItem): i is TimelineItem<LayerDetails> =>
+  isTimelineItem(i) &&
+  Object.hasOwn(i.data, 'details') &&
+  i.data.type === TimelineItemType.Layer;
+
+export const isCycleGapItem = (
   i: TimelineItem
-): i is TimelineItem<EventDetails> =>
-  !!i.data.title && Object.hasOwn(i.data, 'details');
+): i is TimelineItem<CycleGapDetails> =>
+  isTimelineItem(i) &&
+  Object.hasOwn(i.data, 'details') &&
+  i.data.type === TimelineItemType.CycleGap;
+
+export const isPoetRoundItem = (
+  i: TimelineItem
+): i is TimelineItem<PoetRoundDetails> =>
+  isTimelineItem(i) &&
+  Object.hasOwn(i.data, 'details') &&
+  i.data.type === TimelineItemType.PoetRound;
