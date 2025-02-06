@@ -123,13 +123,6 @@ const useTimelineData = () => {
   const epochDuration = netInfo
     ? getEpochDuration(netInfo.layerDuration, netInfo.layersPerEpoch)
     : 0;
-  const currentEpochStartTime = netInfo
-    ? getEpochStartTime(
-        netInfo.layerDuration,
-        netInfo.layersPerEpoch,
-        currentEpoch
-      )
-    : 0;
 
   //
   // Compute data for the timeline
@@ -447,23 +440,51 @@ const useTimelineData = () => {
             if (item.state === SmesherEvents.EventName.ATX_BROADCASTED) {
               const epoch = getData(`epoch_${affectedEpoch}`);
               if (epoch) {
-                setMessage(
-                  id,
-                  'success',
-                  // eslint-disable-next-line max-len
-                  `ATX is broadcasted in epoch ${affectedEpoch}`
-                );
-                updated.push(
-                  updateItem(epoch, {
-                    className: 'epoch eligible',
-                    identities: {
-                      [id]: {
-                        state: IdentityState.ELIGIBLE,
-                        details: 'ATX is broadcasted. Waiting for rewards...',
+                const epochEndTime =
+                  getEpochEndTime(
+                    netInfo.layerDuration,
+                    netInfo.layersPerEpoch,
+                    affectedEpoch
+                  ) + netInfo.genesisTime;
+                const isOutdated = currentTime > epochEndTime;
+
+                if (isOutdated) {
+                  setMessage(
+                    id,
+                    'failed',
+                    // eslint-disable-next-line max-len
+                    `Did not published any proposal in ${affectedEpoch}`
+                  );
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch failed',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.FAILURE,
+                          details: 'Missed publishing proposals',
+                        },
                       },
-                    },
-                  })
-                );
+                    })
+                  );
+                } else {
+                  setMessage(
+                    id,
+                    'success',
+                    // eslint-disable-next-line max-len
+                    `ATX is broadcasted in epoch ${affectedEpoch}`
+                  );
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch eligible',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.ELIGIBLE,
+                          details: 'ATX is broadcasted. Waiting for rewards...',
+                        },
+                      },
+                    })
+                  );
+                }
               }
             }
 
@@ -512,7 +533,8 @@ const useTimelineData = () => {
               if (round) {
                 if (
                   currentTime >
-                  getPoetRoundEnd(poetInfo.config, netInfo, affectedRound)
+                  getPoetRoundEnd(poetInfo.config, netInfo, affectedRound) +
+                    netInfo.genesisTime
                 ) {
                   setMessage(
                     id,
@@ -692,7 +714,6 @@ const useTimelineData = () => {
 
   return {
     currentEpoch,
-    currentEpochStartTime,
     genesisTime: netInfo?.genesisTime,
     epochDuration,
     items: dataSetRef.current,
