@@ -328,12 +328,34 @@ const useTimelineData = () => {
                 }
               });
 
+              const eligibleLayersString = d.layers
+                .map((l) => l.layer)
+                .join(', ');
+
               setMessage(
                 id,
                 'success',
                 // eslint-disable-next-line max-len
-                `Eligible in Layers ${d.layers.map((l) => l.layer).join(', ')}`
+                `Eligible in Layers ${eligibleLayersString} in epoch ${atEpoch}`
               );
+
+              // Mark eligible epoch
+              const epoch = getData(`epoch_${atEpoch}`);
+              if (epoch) {
+                updated.push(
+                  updateItem(epoch, {
+                    className: 'epoch eligible',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.ELIGIBLE,
+                        details: `Eligible in Layers ${d.layers
+                          .map((l) => l.layer)
+                          .join(', ')}`,
+                      },
+                    },
+                  })
+                );
+              }
             }
 
             if (item.state === SmesherEvents.EventName.PROPOSAL_PUBLISHED) {
@@ -358,6 +380,22 @@ const useTimelineData = () => {
                     },
                   })
                 );
+
+                // Update epoch status
+                const epoch = getData(`epoch_${atEpoch}`);
+                if (epoch) {
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch pending',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.PENDING,
+                          details: 'Getting rewards...',
+                        },
+                      },
+                    })
+                  );
+                }
               }
 
               if (
@@ -554,7 +592,7 @@ const useTimelineData = () => {
                       },
                     })
                   );
-                  const epoch = getData(`epoch_${affectedEpoch}`);
+                  const epoch = getData(`epoch_${affectedEpoch + 1}`);
                   if (epoch) {
                     updated.push(
                       updateItem(epoch, {
@@ -587,6 +625,22 @@ const useTimelineData = () => {
                       },
                     })
                   );
+                  const epoch = getData(`epoch_${affectedEpoch + 1}`);
+                  if (epoch) {
+                    updated.push(
+                      updateItem(epoch, {
+                        className: 'epoch eligible',
+                        identities: {
+                          [id]: {
+                            state: IdentityState.ELIGIBLE,
+                            // eslint-disable-next-line max-len
+                            details:
+                              'Registered in PoET. Waiting for PoET proof...',
+                          },
+                        },
+                      })
+                    );
+                  }
                 }
               }
             }
