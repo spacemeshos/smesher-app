@@ -27,6 +27,7 @@ import StatusBulb, { getStatusByStore } from '../components/basic/StatusBulb';
 import TableContents from '../components/basic/TableContents';
 import SmeshingTimeline from '../components/timeline/SmeshingTimeline';
 import useTimelineData from '../hooks/useTimelineData';
+import useActivations from '../store/useActivations';
 import useEligibilities from '../store/useEligibilities';
 import useNetworkInfo from '../store/useNetworkInfo';
 import useNodeStatus from '../store/useNodeStatus';
@@ -63,6 +64,7 @@ function DashboardScreen(): JSX.Element {
     useSmesherConnection();
   const NetInfo = useNetworkInfo();
   const Node = useNodeStatus();
+  const Activations = useActivations();
   const PoET = usePoETInfo();
   const SmesherStates = useSmesherStates();
   const Eligibilities = useEligibilities();
@@ -261,6 +263,7 @@ function DashboardScreen(): JSX.Element {
                         ['Applied layer', Node.data.appliedLayer],
                         ['Latest layer', Node.data.latestLayer],
                         ['Connected peers', Node.data.connectedPeers],
+                        ['Activations', Activations.data?.count ?? '???'],
                       ]}
                     />
                   </Table>
@@ -340,7 +343,8 @@ function DashboardScreen(): JSX.Element {
                           >
                             {index + 1}
                           </Box>
-                          {data.smesherMessages[id]?.message ?? ''}
+                          {data.smesherMessages[id]?.message ??
+                            'Waiting for the smesher events...'}
                         </Text>
 
                         <Text mb={2} color="gray.300">
@@ -427,9 +431,14 @@ function DashboardScreen(): JSX.Element {
                                           size="sm"
                                           mr={0.5}
                                           mb={0.5}
+                                          // eslint-disable-next-line max-len
+                                          // eslint-disable-next-line no-nested-ternary
                                           {...(proposals.has(el.layer)
                                             ? { colorScheme: 'green' }
-                                            : {})}
+                                            : (Node?.data?.currentLayer ?? 0) >
+                                              el.layer
+                                            ? { colorScheme: 'red' }
+                                            : { colorScheme: 'yellow' })}
                                         >
                                           {el.layer}
                                         </Tag>

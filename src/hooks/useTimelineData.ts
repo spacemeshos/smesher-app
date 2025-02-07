@@ -98,14 +98,14 @@ const useTimelineData = () => {
   const updateData = (data: TimelineItem[]) => dataSetRef.current.update(data);
 
   //
-  // Update current time once per layer
+  // Update current time twice per layer
   //
   const [currentTime, setCurrentTime] = useState(Date.now());
   useEffect(() => {
     if (netInfo) {
       const interval = setInterval(() => {
         setCurrentTime(Date.now());
-      }, netInfo.layerDuration * SECOND);
+      }, Math.floor((netInfo.layerDuration * SECOND) / 2));
       return () => clearInterval(interval);
     }
     return noop;
@@ -122,13 +122,6 @@ const useTimelineData = () => {
     : 0;
   const epochDuration = netInfo
     ? getEpochDuration(netInfo.layerDuration, netInfo.layersPerEpoch)
-    : 0;
-  const currentEpochStartTime = netInfo
-    ? getEpochStartTime(
-        netInfo.layerDuration,
-        netInfo.layersPerEpoch,
-        currentEpoch
-      )
     : 0;
 
   //
@@ -291,59 +284,78 @@ const useTimelineData = () => {
                   const rewarded = smesherRewards.find(
                     (r) => r.layerPaid === layer.layer
                   );
+                  const missed = !rewarded && layerByTime > layer.layer;
                   eligibilities[atEpoch] = {
                     ...eligibilities[atEpoch],
                     [layer.layer]: rewarded ? 'rewarded' : 'eligible',
                   };
-                  if (layerByTime > layer.layer && !rewarded) {
-                    updated.push(
-                      updateItem(eligibleLayer, {
-                        className: 'layer failed',
-                        identities: {
-                          [id]: {
-                            state: IdentityState.FAILURE,
-                            details: `Missed reward for Layer ${layer.layer}`,
-                          },
-                        },
-                      })
-                    );
-                  } else {
-                    updated.push(
-                      updateItem(eligibleLayer, {
-                        className: rewarded
-                          ? 'layer success'
-                          : 'layer eligible',
-                        identities: {
-                          [id]: rewarded
-                            ? {
-                                state: IdentityState.SUCCESS,
-                                details: `Got reward for Layer ${
-                                  layer.layer
-                                }: ${formatSmidge(
-                                  // eslint-disable-next-line max-len
-                                  rewarded.rewardForFees +
-                                    rewarded.rewardForLayer
-                                )} to ${rewarded.coinbase} (weight ${
-                                  layer.count
-                                })`,
-                              }
-                            : {
-                                state: IdentityState.ELIGIBLE,
-                                details: `Eligible in Layer ${layer.layer}`,
-                              },
-                        },
-                        content: layer.layer.toString(),
-                      })
-                    );
-                  }
+                  updated.push(
+                    updateItem(eligibleLayer, {
+                      // eslint-disable-next-line no-nested-ternary
+                      className: rewarded
+                        ? 'layer success'
+                        : missed
+                        ? 'layer failed'
+                        : 'layer eligible',
+                      identities: {
+                        // eslint-disable-next-line no-nested-ternary
+                        [id]: rewarded
+                          ? {
+                              state: IdentityState.SUCCESS,
+                              details: `Got reward for Layer ${
+                                layer.layer
+                              }: ${formatSmidge(
+                                // eslint-disable-next-line max-len
+                                rewarded.rewardForFees + rewarded.rewardForLayer
+                              )} to ${rewarded.coinbase} (weight ${
+                                layer.count
+                              })`,
+                            }
+                          : missed
+                          ? {
+                              state: IdentityState.FAILURE,
+                              // eslint-disable-next-line max-len
+                              details: `Missed publishing proposal at layer ${layer.layer}`,
+                            }
+                          : {
+                              state: IdentityState.ELIGIBLE,
+                              details: `Eligible in Layer ${layer.layer}`,
+                            },
+                      },
+                      content: layer.layer.toString(),
+                    })
+                  );
                 }
               });
+
+              const eligibleLayersString = d.layers
+                .map((l) => l.layer)
+                .join(', ');
+
               setMessage(
                 id,
                 'success',
                 // eslint-disable-next-line max-len
-                `Eligible in Layers ${d.layers.map((l) => l.layer).join(', ')}`
+                `Eligible in Layers ${eligibleLayersString} in epoch ${atEpoch}`
               );
+
+              // Mark eligible epoch
+              const epoch = getData(`epoch_${atEpoch}`);
+              if (epoch) {
+                updated.push(
+                  updateItem(epoch, {
+                    className: 'epoch eligible',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.ELIGIBLE,
+                        details: `Eligible in Layers ${d.layers
+                          .map((l) => l.layer)
+                          .join(', ')}`,
+                      },
+                    },
+                  })
+                );
+              }
             }
 
             if (item.state === SmesherEvents.EventName.PROPOSAL_PUBLISHED) {
@@ -368,6 +380,44 @@ const useTimelineData = () => {
                     },
                   })
                 );
+
+                // Update epoch status
+                const epoch = getData(`epoch_${atEpoch}`);
+                if (epoch) {
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch pending',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.PENDING,
+                          details: 'Getting rewards...',
+                        },
+                      },
+                    })
+                  );
+                }
+              }
+
+              if (
+                Object.values(eligibilities[atEpoch] ?? {}).every(
+                  (x) => x === 'rewarded'
+                )
+              ) {
+                const epochItem = getData(`epoch_${atEpoch}`);
+                if (epochItem) {
+                  updated.push(
+                    updateItem(epochItem, {
+                      className: 'epoch rewarded',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.SUCCESS,
+                          // eslint-disable-next-line max-len
+                          details: `Got all rewards for epoch ${atEpoch}`,
+                        },
+                      },
+                    })
+                  );
+                }
               }
             }
 
@@ -393,6 +443,32 @@ const useTimelineData = () => {
                   })
                 );
               }
+
+              const layer = getData(`layer_${atLayer}`);
+              if (layer) {
+                updated.push(
+                  updateItem(layer, {
+                    className: 'layer failed',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.FAILURE,
+                        details: `${
+                          item.state ===
+                          SmesherEvents.EventName.PROPOSAL_BUILD_FAILED
+                            ? 'Proposal build'
+                            : 'Proposal publish'
+                        } failed: ${
+                          (
+                            details as
+                              | SmesherEvents.ProposalPublishFailedEventDetails
+                              | SmesherEvents.ProposalBuildFailedEventDetails
+                          ).message
+                        }`,
+                      },
+                    },
+                  })
+                );
+              }
             }
 
             if (item.state === SmesherEvents.EventName.GENERATING_POST_PROOF) {
@@ -402,23 +478,51 @@ const useTimelineData = () => {
             if (item.state === SmesherEvents.EventName.ATX_BROADCASTED) {
               const epoch = getData(`epoch_${affectedEpoch}`);
               if (epoch) {
-                setMessage(
-                  id,
-                  'success',
-                  // eslint-disable-next-line max-len
-                  `ATX is broadcasted in epoch ${affectedEpoch}`
-                );
-                updated.push(
-                  updateItem(epoch, {
-                    className: 'epoch success',
-                    identities: {
-                      [id]: {
-                        state: IdentityState.PENDING,
-                        details: 'ATX is broadcasted',
+                const epochEndTime =
+                  getEpochEndTime(
+                    netInfo.layerDuration,
+                    netInfo.layersPerEpoch,
+                    affectedEpoch
+                  ) + netInfo.genesisTime;
+                const isOutdated = currentTime > epochEndTime;
+
+                if (isOutdated) {
+                  setMessage(
+                    id,
+                    'failed',
+                    // eslint-disable-next-line max-len
+                    `Did not published any proposal in ${affectedEpoch}`
+                  );
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch failed',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.FAILURE,
+                          details: 'Missed publishing proposals',
+                        },
                       },
-                    },
-                  })
-                );
+                    })
+                  );
+                } else {
+                  setMessage(
+                    id,
+                    'success',
+                    // eslint-disable-next-line max-len
+                    `ATX is broadcasted in epoch ${affectedEpoch}`
+                  );
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch eligible',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.ELIGIBLE,
+                          details: 'ATX is broadcasted. Waiting for rewards...',
+                        },
+                      },
+                    })
+                  );
+                }
               }
             }
 
@@ -465,23 +569,79 @@ const useTimelineData = () => {
                 `poet_round_${affectedRound}`
               ) as TimelineItem<PoetRoundDetails>;
               if (round) {
-                setMessage(
-                  id,
-                  'success',
-                  // eslint-disable-next-line max-len
-                  `Registered in PoET round ${affectedRound}`
-                );
-                updated.push(
-                  updateItem(round, {
-                    className: 'poet-round eligible',
-                    identities: {
-                      [id]: {
-                        state: IdentityState.ELIGIBLE,
-                        details: 'Registered in PoET',
+                if (
+                  currentTime >
+                  getPoetRoundEnd(poetInfo.config, netInfo, affectedRound) +
+                    netInfo.genesisTime
+                ) {
+                  setMessage(
+                    id,
+                    'failed',
+                    // eslint-disable-next-line max-len
+                    `Did not received PoET proof for round ${affectedRound} in time. Will not have rewards in epoch ${affectedEpoch}`
+                  );
+                  updated.push(
+                    updateItem(round, {
+                      className: 'poet-round failed',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.FAILURE,
+                          // eslint-disable-next-line max-len
+                          details: `Did not received PoET proof for round ${affectedRound} in time`,
+                        },
                       },
-                    },
-                  })
-                );
+                    })
+                  );
+                  const epoch = getData(`epoch_${affectedEpoch + 1}`);
+                  if (epoch) {
+                    updated.push(
+                      updateItem(epoch, {
+                        className: 'epoch failed',
+                        identities: {
+                          [id]: {
+                            state: IdentityState.FAILURE,
+                            // eslint-disable-next-line max-len
+                            details: `Did not received PoET proof for round ${affectedRound} in time`,
+                          },
+                        },
+                      })
+                    );
+                  }
+                } else {
+                  setMessage(
+                    id,
+                    'success',
+                    // eslint-disable-next-line max-len
+                    `Registered in PoET round ${affectedRound}`
+                  );
+                  updated.push(
+                    updateItem(round, {
+                      className: 'poet-round eligible',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.ELIGIBLE,
+                          details: 'Registered in PoET',
+                        },
+                      },
+                    })
+                  );
+                  const epoch = getData(`epoch_${affectedEpoch + 1}`);
+                  if (epoch) {
+                    updated.push(
+                      updateItem(epoch, {
+                        className: 'epoch eligible',
+                        identities: {
+                          [id]: {
+                            state: IdentityState.ELIGIBLE,
+                            // eslint-disable-next-line max-len
+                            details:
+                              'Registered in PoET. Waiting for PoET proof...',
+                          },
+                        },
+                      })
+                    );
+                  }
+                }
               }
             }
 
@@ -592,6 +752,7 @@ const useTimelineData = () => {
     }
   }, [
     currentEpoch,
+    currentTime,
     epochDuration,
     layerByTime,
     netInfo,
@@ -607,7 +768,6 @@ const useTimelineData = () => {
 
   return {
     currentEpoch,
-    currentEpochStartTime,
     genesisTime: netInfo?.genesisTime,
     epochDuration,
     items: dataSetRef.current,

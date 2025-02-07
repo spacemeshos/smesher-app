@@ -89,8 +89,14 @@
   border-color: transparent !important
 }
 
-.epoch.failed, .layer.failed, .poet-round.failed, .cycle-gap.failed {
+.epoch.failed, .layer.failed, .poet-round.failed {
   background: #322525;
+}
+.epoch.rewarded, .layer.rewarded, .poet-round.success {
+  background-color: #236c31;
+}
+.epoch.eligible, .layer.eligible, .poet-round.eligible {
+  background-color: #455532;
 }
 
 .identities {
@@ -131,8 +137,4 @@
 .id-marker.eligible {
   background: #FFD700;
   color: #000;
-}
-
-.layer.rewarded {
-  background-color: #236c31;
 }
