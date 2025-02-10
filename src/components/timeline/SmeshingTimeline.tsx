@@ -42,7 +42,7 @@ const getGroups = ({
     showNested: smesherIds.length > 1,
     nestedGroups:
       smesherIds.length > 1
-        ? smesherIds.map((id) => `smesher_${id}`)
+        ? smesherIds.sort(sortHexString).map((id) => `smesher_${id}`)
         : undefined,
   },
   ...smesherIds.map(
