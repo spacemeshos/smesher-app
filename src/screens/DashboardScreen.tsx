@@ -41,6 +41,8 @@ import { SECOND } from '../utils/constants';
 import { formatTimestamp } from '../utils/datetime';
 import { sortHexString } from '../utils/hexString';
 import { formatSmidge } from '../utils/smh';
+import useWhyDidUpdate from '../hooks/useWhyDidUpdate';
+import { N } from '@mobily/ts-belt';
 
 function OptionalError({
   store,
@@ -77,6 +79,15 @@ function DashboardScreen(): JSX.Element {
     setConnection('');
     navigate('/');
   };
+
+  useWhyDidUpdate('DashboardScreen', {
+    NetInfo,
+    Node,
+    SmesherStates,
+    Eligibilities,
+    Proposals,
+    Rewards,
+  });
 
   const nodeStatusStore = getStatusByStore(Node);
   const nodeStatusBulb =

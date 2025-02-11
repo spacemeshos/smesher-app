@@ -26,9 +26,9 @@ export const fetchSmesherStatesChunk = (
     .then((res) => res.identities);
 };
 
-type SmesherStates = Record<string, { history: IdentityStateInfo[] }>;
+export type SmesherStates = Record<string, { history: IdentityStateInfo[] }>;
 
-const mergeSmesherStates = (
+export const mergeSmesherStates = (
   obj1: SmesherStates,
   obj2: SmesherStates
 ): SmesherStates =>
@@ -61,4 +61,28 @@ export const fetchSmesherStates = async (rpc: string) => {
   };
 
   return fetchNext(0);
+};
+
+export type SmesherStatesSetter = (states: SmesherStates) => void;
+export const fetchSmesherStatesWithCallback = (setter: SmesherStatesSetter) => {
+  let latestIdx = 0;
+  return async (rpc: string) => {
+    const fetchNext = async () => {
+      console.log('fetched page', latestIdx);
+      const res = await fetchSmesherStatesChunk(rpc, PER_PAGE, latestIdx);
+      const len = Object.values(res).flatMap((x) => x.history).length;
+      latestIdx += len;
+
+      if (len === PER_PAGE) {
+        setter(res);
+        if (latestIdx < 300) {
+          console.log('will fetch next with offset', latestIdx);
+          fetchNext();
+        } else {
+          console.log('stop');
+        }
+      }
+    };
+    await fetchNext();
+  };
 };

@@ -10,21 +10,20 @@ import createDynamicStore, {
   getDynamicStoreDefaults,
 } from './utils/createDynamicStore';
 import useEveryLayerFetcher from './utils/useEveryLayerFetcher';
-import useSmesherStates from './useSmesherStates';
+import { useSmesherIds } from './useSmesherStates';
 
 type RewardsState = Record<HexString, Reward[]>;
 const useRewardsStore = createDynamicStore<RewardsState>();
 
 const useRewards = () => {
   const store = useRewardsStore();
-  const { data } = useSmesherStates();
   const idsRef = useRef(new Set<HexString>());
+  const ids = useSmesherIds();
   const [identities, setIdentities] = useState(<HexString[]>[]);
 
   useEffect(() => {
     // Update idsRef list
-    if (!data) return;
-    const ids = Object.keys(data);
+    if (!ids) return;
     let changed = false;
     ids.forEach((id) => {
       if (!idsRef.current.has(id)) {
@@ -35,7 +34,7 @@ const useRewards = () => {
     if (changed) {
       setIdentities(Array.from(idsRef.current));
     }
-  }, [data]);
+  }, [ids]);
 
   const fetchRewards = useMemo(
     () => fetchRewardsBySmesherIds(Array.from(identities)),
