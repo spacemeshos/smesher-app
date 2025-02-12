@@ -46,9 +46,10 @@ const getGroups = ({
         : undefined,
   },
   ...smesherIds.map(
-    (id): TimelineGroup => ({
+    (id, idx): TimelineGroup => ({
       id: `smesher_${id}`,
       content: getAbbreviatedHexString(id),
+      visible: idx === 1,
     })
   ),
 ];

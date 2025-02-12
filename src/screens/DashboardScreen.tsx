@@ -1,4 +1,3 @@
-import humanizeDuration from 'humanize-duration';
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,7 +9,6 @@ import {
   AccordionPanel,
   Box,
   Button,
-  Code,
   Divider,
   Flex,
   Heading,
@@ -18,13 +16,16 @@ import {
   ListItem,
   Table,
   TableContainer,
-  Tag,
   Text,
-  Tooltip,
 } from '@chakra-ui/react';
 
 import StatusBulb, { getStatusByStore } from '../components/basic/StatusBulb';
 import TableContents from '../components/basic/TableContents';
+import NetworkInfo from '../components/dashboard/NetworkInfo';
+import NodeStatusInfo from '../components/dashboard/NodeStatusInfo';
+import OptionalError from '../components/dashboard/OptionalError';
+// eslint-disable-next-line max-len
+import SmesherIdentityDetails from '../components/dashboard/SmesherIdentityDetails';
 import SmeshingTimeline from '../components/timeline/SmeshingTimeline';
 import useTimelineData from '../hooks/useTimelineData';
 import useActivations from '../store/useActivations';
@@ -37,29 +38,8 @@ import useRewards from '../store/useRewards';
 import useSmesherConnection from '../store/useSmesherConnection';
 import useSmesherStates from '../store/useSmesherStates';
 import { HexString } from '../types/common';
-import { SECOND } from '../utils/constants';
-import { formatTimestamp } from '../utils/datetime';
 import { sortHexString } from '../utils/hexString';
 import { formatSmidge } from '../utils/smh';
-import useWhyDidUpdate from '../hooks/useWhyDidUpdate';
-import { N } from '@mobily/ts-belt';
-
-function OptionalError({
-  store,
-  prefix = '',
-}: {
-  store: { error: Error | null };
-  prefix?: string;
-}) {
-  if (!store.error) return null;
-
-  return (
-    <Text color="red.500">
-      {prefix}
-      {store.error.message}
-    </Text>
-  );
-}
 
 function DashboardScreen(): JSX.Element {
   const { setConnection, getConnection, refreshConnection } =
@@ -79,15 +59,6 @@ function DashboardScreen(): JSX.Element {
     setConnection('');
     navigate('/');
   };
-
-  useWhyDidUpdate('DashboardScreen', {
-    NetInfo,
-    Node,
-    SmesherStates,
-    Eligibilities,
-    Proposals,
-    Rewards,
-  });
 
   const nodeStatusStore = getStatusByStore(Node);
   const nodeStatusBulb =
@@ -144,17 +115,6 @@ function DashboardScreen(): JSX.Element {
     [Rewards.data]
   );
 
-  const getPublishedProposalLayers = useCallback(
-    (id: HexString) => {
-      if (!Proposals.data) {
-        return new Set();
-      }
-      const proposals = Proposals.data[id]?.proposals ?? [];
-      return new Set(proposals.map((proposal) => proposal.layer));
-    },
-    [Proposals.data]
-  );
-
   return (
     <>
       <Flex
@@ -201,44 +161,7 @@ function DashboardScreen(): JSX.Element {
             </AccordionButton>
             <AccordionPanel px={6} pb={4}>
               <OptionalError store={NetInfo} />
-              {NetInfo.data && (
-                <TableContainer>
-                  <Table size="sm" variant="unstyled">
-                    <TableContents
-                      tableKey="netInfo"
-                      tdProps={{
-                        _first: { pl: 0, w: '30%' },
-                        _last: { pr: 0 },
-                      }}
-                      data={[
-                        [
-                          'Genesis Time',
-                          formatTimestamp(NetInfo.data.genesisTime || 0),
-                        ],
-                        [
-                          'Genesis ID',
-                          <Code
-                            display="inline"
-                            wordBreak="break-all"
-                            whiteSpace="normal"
-                          >
-                            {NetInfo.data.genesisId}
-                          </Code>,
-                        ],
-                        [
-                          'Layer duration',
-                          humanizeDuration(NetInfo.data.layerDuration * SECOND),
-                        ],
-                        ['Layers per epoch', NetInfo.data.layersPerEpoch],
-                        [
-                          'Effective genesis',
-                          NetInfo.data.effectiveGenesisLayer,
-                        ],
-                      ]}
-                    />
-                  </Table>
-                </TableContainer>
-              )}
+              {NetInfo.data && <NetworkInfo data={NetInfo.data} />}
             </AccordionPanel>
           </AccordionItem>
 
@@ -253,32 +176,10 @@ function DashboardScreen(): JSX.Element {
             <AccordionPanel px={6} pb={4}>
               <OptionalError store={Node} />
               {Node.data && (
-                <TableContainer>
-                  <Table size="sm" variant="unstyled">
-                    <TableContents
-                      tableKey="netInfo"
-                      tdProps={{
-                        _first: { pl: 0, w: '30%' },
-                        _last: { pr: 0 },
-                      }}
-                      data={[
-                        [
-                          'Sync status',
-                          Node.data.isSynced ? 'Synced' : 'Not synced',
-                        ],
-                        [
-                          'Processed layer',
-                          // eslint-disable-next-line max-len
-                          `${Node.data.processedLayer} / ${Node.data.currentLayer}`,
-                        ],
-                        ['Applied layer', Node.data.appliedLayer],
-                        ['Latest layer', Node.data.latestLayer],
-                        ['Connected peers', Node.data.connectedPeers],
-                        ['Activations', Activations.data?.count ?? '???'],
-                      ]}
-                    />
-                  </Table>
-                </TableContainer>
+                <NodeStatusInfo
+                  node={Node.data}
+                  activations={Activations.data}
+                />
               )}
             </AccordionPanel>
           </AccordionItem>
@@ -342,168 +243,65 @@ function DashboardScreen(): JSX.Element {
                 const rewardStats = getRewardStats(id);
                 return (
                   <AccordionItem key={`Accordion_${id}`}>
-                    <AccordionButton px={0} fontSize="sm">
-                      <Box flex="1" textAlign="left">
-                        <Text mb={0.5}>
-                          <Box
-                            as="span"
-                            className={`id-marker ${
-                              data.smesherMessages[id]?.type ?? ''
-                            }`}
-                            mr={1}
-                          >
-                            {index + 1}
-                          </Box>
-                          {data.smesherMessages[id]?.message ??
-                            'Waiting for the smesher events...'}
-                        </Text>
-
-                        <Text mb={2} color="gray.300">
-                          <Text as="span" fontSize="xs">
-                            Smesher ID:
-                          </Text>
-                          0x{id}
-                        </Text>
-
-                        <Text fontSize="xs" color="gray.500">
-                          Eligible for{' '}
-                          <strong>{eligibilityStats.layers} layers</strong>{' '}
-                          <span>in {eligibilityStats.epochs} epochs</span>
-                        </Text>
-                        <Text fontSize="xs" color="gray.500">
-                          Published <strong>{proposalStats} proposals</strong>
-                        </Text>
-                        <Text fontSize="xs" color="gray.500">
-                          Earned <strong>{rewardStats.income}</strong> in{' '}
-                          {rewardStats.rewards} rewards
-                        </Text>
-                      </Box>
-                      <AccordionIcon />
-                    </AccordionButton>
-                    <AccordionPanel px={0} pb={4}>
-                      <Flex w="100%" justifyContent="space-between" mb={2}>
-                        <Box w="55%">
-                          <Heading fontSize="sm">Eligibilities</Heading>
-                          {Object.entries(
-                            Eligibilities.data?.[id]?.epochs ?? {}
-                          ).map(([epoch, { eligibilities }]) => {
-                            const proposals = getPublishedProposalLayers(id);
-                            return (
+                    {({ isExpanded }) => (
+                      <>
+                        <AccordionButton px={0} fontSize="sm">
+                          <Box flex="1" textAlign="left">
+                            <Text mb={0.5}>
                               <Box
-                                key={`Eligibilities_${id}_${epoch}`}
-                                my={2}
-                                p={3}
-                                borderWidth={1}
-                                borderStyle="solid"
-                                borderColor="brand.darkGray"
-                                borderRadius="lg"
+                                as="span"
+                                className={`id-marker ${
+                                  data.smesherMessages[id]?.type ?? ''
+                                }`}
+                                mr={1}
                               >
-                                <Text fontSize="sm">Epoch {epoch}</Text>
-                                <Text
-                                  fontSize="xs"
-                                  color="gray.500"
-                                  mt={1}
-                                  mb={0.5}
-                                >
-                                  Layers
-                                </Text>
-                                <Box lineHeight={0}>
-                                  {eligibilities
-                                    .sort((a, b) => a.layer - b.layer)
-                                    .map((el) => (
-                                      <Tooltip
-                                        label={
-                                          <>
-                                            <Text fontSize="xs">
-                                              Layer: {el.layer}
-                                            </Text>
-                                            <Text fontSize="xs" mb={1}>
-                                              Weight: {el.count}
-                                            </Text>
-                                            {proposals.has(el.layer) && (
-                                              <Text
-                                                color="brand.darkGreen"
-                                                fontSize="xs"
-                                              >
-                                                Published:{' '}
-                                                {Proposals.data?.[
-                                                  id
-                                                ]?.proposals?.find(
-                                                  (p) => p.layer === el.layer
-                                                )?.proposal ?? ''}
-                                              </Text>
-                                            )}
-                                          </>
-                                        }
-                                        // eslint-disable-next-line max-len
-                                        key={`Eligibility_${id}_${epoch}_${el.layer}`}
-                                      >
-                                        <Tag
-                                          size="sm"
-                                          mr={0.5}
-                                          mb={0.5}
-                                          // eslint-disable-next-line max-len
-                                          // eslint-disable-next-line no-nested-ternary
-                                          {...(proposals.has(el.layer)
-                                            ? { colorScheme: 'green' }
-                                            : (Node?.data?.currentLayer ?? 0) >
-                                              el.layer
-                                            ? { colorScheme: 'red' }
-                                            : { colorScheme: 'yellow' })}
-                                        >
-                                          {el.layer}
-                                        </Tag>
-                                      </Tooltip>
-                                    ))}
-                                </Box>
+                                {index + 1}
                               </Box>
-                            );
-                          })}
-                          {(!Eligibilities.data?.[id] ||
-                            Object.keys(Eligibilities.data?.[id] ?? {})
-                              .length === 0) && (
-                            <Text fontSize="sm" color="gray.500">
-                              No eligible epochs and layers yet
+                              {data.smesherMessages[id]?.message ??
+                                'Waiting for the smesher events...'}
                             </Text>
-                          )}
-                        </Box>
-                        <Box w="40%">
-                          <Heading fontSize="sm">Rewards</Heading>
-                          {(Rewards.data?.[id] ?? []).map((reward) => (
-                            <Box
-                              // eslint-disable-next-line max-len
-                              key={`Reward${id}_${reward.layerPaid}_${reward.smesher}`}
-                              my={2}
-                              p={3}
-                              borderWidth={1}
-                              borderStyle="solid"
-                              borderColor="brand.darkGray"
-                              borderRadius="lg"
-                            >
-                              <Text fontSize="sm" color="brand.green">
-                                +
-                                {formatSmidge(
-                                  reward.rewardForLayer + reward.rewardForFees
-                                )}
+
+                            <Text mb={2} color="gray.300">
+                              <Text as="span" fontSize="xs">
+                                Smesher ID:
                               </Text>
-                              <Text
-                                fontSize="xs"
-                                color="gray.500"
-                                mt={1}
-                                mb={0.5}
-                              >
-                                To: {reward.coinbase}
-                              </Text>
-                            </Box>
-                          ))}
-                          {(Rewards.data?.[id] ?? []).length === 0 && (
-                            <Text fontSize="sm" color="gray.500">
-                              No rewards yet
+                              0x{id}
                             </Text>
+
+                            <Text fontSize="xs" color="gray.500">
+                              Eligible for{' '}
+                              {/* eslint-disable-next-line max-len */}
+                              <strong>
+                                {eligibilityStats.layers} layers
+                              </strong>{' '}
+                              <span>in {eligibilityStats.epochs} epochs</span>
+                            </Text>
+                            <Text fontSize="xs" color="gray.500">
+                              Published
+                              <strong>{proposalStats} proposals</strong>
+                            </Text>
+                            <Text fontSize="xs" color="gray.500">
+                              {/* eslint-disable-next-line max-len */}
+                              Earned <strong>
+                                {rewardStats.income}
+                              </strong> in {rewardStats.rewards} rewards
+                            </Text>
+                          </Box>
+                          <AccordionIcon />
+                        </AccordionButton>
+                        <AccordionPanel px={0} pb={4}>
+                          {isExpanded && (
+                            <SmesherIdentityDetails
+                              id={id}
+                              eligibilities={Eligibilities.data?.[id]?.epochs}
+                              proposals={Proposals.data?.[id]?.proposals}
+                              rewards={Rewards.data?.[id]}
+                              currentLayer={Node.data?.currentLayer ?? 0}
+                            />
                           )}
-                        </Box>
-                      </Flex>
-                    </AccordionPanel>
+                        </AccordionPanel>
+                      </>
+                    )}
                   </AccordionItem>
                 );
               })}

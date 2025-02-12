@@ -63,26 +63,27 @@ export const fetchSmesherStates = async (rpc: string) => {
   return fetchNext(0);
 };
 
+let isInProcess = false;
 export type SmesherStatesSetter = (states: SmesherStates) => void;
 export const fetchSmesherStatesWithCallback = (setter: SmesherStatesSetter) => {
   let latestIdx = 0;
   return async (rpc: string) => {
+    if (isInProcess) return;
+
     const fetchNext = async () => {
-      console.log('fetched page', latestIdx);
       const res = await fetchSmesherStatesChunk(rpc, PER_PAGE, latestIdx);
       const len = Object.values(res).flatMap((x) => x.history).length;
       latestIdx += len;
 
+      setter(res);
       if (len === PER_PAGE) {
-        setter(res);
-        if (latestIdx < 300) {
-          console.log('will fetch next with offset', latestIdx);
-          fetchNext();
-        } else {
-          console.log('stop');
-        }
+        await fetchNext();
+      } else {
+        isInProcess = false;
       }
     };
+
+    isInProcess = true;
     await fetchNext();
   };
 };

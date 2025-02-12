@@ -25,28 +25,25 @@ const useSmesherStates = () => {
 
   const { setData } = store;
 
-  const fetcher = useMemo(() => {
-    console.log('fetcher called');
-    return fetchSmesherStatesWithCallback((newStates) =>
-      setData((prev) => {
-        console.time('merge');
-        const res = prev ? mergeSmesherStates(prev, newStates) : newStates;
-        console.timeEnd('merge');
-        return res;
-      })
-    );
-  }, [setData]);
+  const fetcher = useMemo(
+    () =>
+      fetchSmesherStatesWithCallback((newStates) =>
+        setData((prev) => {
+          const res = prev ? mergeSmesherStates(prev, newStates) : newStates;
+          return res;
+        })
+      ),
+    [setData]
+  );
 
   useEffect(() => {
-    console.log('use effect!');
     // let ival: ReturnType<typeof setInterval> | null = null;
     let timeout: ReturnType<typeof setTimeout> | null = null;
 
     if (fetcher && rpc && netInfo?.layerDuration) {
-      // ival = setInterval(() => fetcher(rpc), netInfo.layerDuration * SECOND);
+      // ival = setInterval(() => fetcher(rpc), 30 * SECOND);
       timeout = setTimeout(() => fetcher(rpc), 5 * SECOND);
     }
-    console.log('...');
     return () => {
       // if (ival) clearInterval(ival);
       if (timeout) clearTimeout(timeout);
