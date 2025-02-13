@@ -39,17 +39,16 @@ const getGroups = ({
   {
     id: 'events',
     content: 'Events',
-    showNested: smesherIds.length > 1,
+    showNested: false,
     nestedGroups:
       smesherIds.length > 1
         ? smesherIds.sort(sortHexString).map((id) => `smesher_${id}`)
         : undefined,
   },
   ...smesherIds.map(
-    (id, idx): TimelineGroup => ({
+    (id): TimelineGroup => ({
       id: `smesher_${id}`,
       content: getAbbreviatedHexString(id),
-      visible: idx === 1,
     })
   ),
 ];
