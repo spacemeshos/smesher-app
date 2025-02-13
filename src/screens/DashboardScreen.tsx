@@ -268,24 +268,29 @@ function DashboardScreen(): JSX.Element {
                               0x{id}
                             </Text>
 
-                            <Text fontSize="xs" color="gray.500">
-                              Eligible for{' '}
-                              {/* eslint-disable-next-line max-len */}
-                              <strong>
-                                {eligibilityStats.layers} layers
-                              </strong>{' '}
-                              <span>in {eligibilityStats.epochs} epochs</span>
-                            </Text>
-                            <Text fontSize="xs" color="gray.500">
-                              Published
-                              <strong>{proposalStats} proposals</strong>
-                            </Text>
-                            <Text fontSize="xs" color="gray.500">
-                              {/* eslint-disable-next-line max-len */}
-                              Earned <strong>
-                                {rewardStats.income}
-                              </strong> in {rewardStats.rewards} rewards
-                            </Text>
+                            <Flex
+                              flexDir={{ base: 'column', lg: 'row' }}
+                              gap={{ base: 1, lg: 10 }}
+                            >
+                              <Text fontSize="xs" color="gray.500">
+                                Eligible for{' '}
+                                {/* eslint-disable-next-line max-len */}
+                                <strong>
+                                  {eligibilityStats.layers} layers
+                                </strong>{' '}
+                                <span>in {eligibilityStats.epochs} epochs</span>
+                              </Text>
+                              <Text fontSize="xs" color="gray.500">
+                                Published
+                                <strong>{proposalStats} proposals</strong>
+                              </Text>
+                              <Text fontSize="xs" color="gray.500">
+                                {/* eslint-disable-next-line max-len */}
+                                Earned <strong>
+                                  {rewardStats.income}
+                                </strong> in {rewardStats.rewards} rewards
+                              </Text>
+                            </Flex>
                           </Box>
                           <AccordionIcon />
                         </AccordionButton>
