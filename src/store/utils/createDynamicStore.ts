@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type SetterFn<T> = (prev: T | null) => T;
+export type SetterFn<T> = (prev: T | null) => T;
 
 export type DynamicStore<T> = {
   data: T | null;

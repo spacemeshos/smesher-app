@@ -1,19 +1,30 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 
 import { fetchRewardsBySmesherIds } from '../api/requests/rewards';
 import { HexString } from '../types/common';
-import { Reward } from '../types/reward';
+import { Reward, RewardsPerIdentity } from '../types/reward';
 
 import createDynamicStore, {
   createViewOnlyDynamicStore,
   getDynamicStoreDefaults,
+  SetterFn,
 } from './utils/createDynamicStore';
 import useEveryLayerFetcher from './utils/useEveryLayerFetcher';
 import { useSmesherIds } from './useSmesherStates';
 
 type RewardsState = Record<HexString, Reward[]>;
 const useRewardsStore = createDynamicStore<RewardsState>();
+
+type RecordList<T> = Record<string, T[]>;
+const merge = <T>(prev: RecordList<T>, next: RecordList<T>) =>
+  Object.entries(next).reduce(
+    (acc, [key, value]) => ({
+      ...acc,
+      [key]: [...(prev[key] || []), ...value],
+    }),
+    prev
+  );
 
 const useRewards = () => {
   const store = useRewardsStore();
@@ -23,7 +34,31 @@ const useRewards = () => {
     () => fetchRewardsBySmesherIds(ids ?? []),
     [ids]
   );
-  useEveryLayerFetcher(store, fetchRewards);
+
+  const { setData } = store;
+
+  const setDataToRecord = useCallback(
+    (input: RewardsPerIdentity | SetterFn<RewardsPerIdentity>) => {
+      if (typeof input === 'function') {
+        // Kinda imposible state
+        throw new Error(
+          'Rewards store is not supposed to have a setter function'
+        );
+      } else {
+        setData((prev) => (prev ? merge(prev, input) : input));
+      }
+    },
+    [setData]
+  );
+  const storeSetRecord = useMemo(
+    () => ({
+      ...store,
+      setData: setDataToRecord,
+    }),
+    [setDataToRecord, store]
+  );
+
+  useEveryLayerFetcher(storeSetRecord, fetchRewards);
   return useMemo(() => createViewOnlyDynamicStore(store), [store]);
 };
 
