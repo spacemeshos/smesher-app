@@ -33,21 +33,18 @@ export enum EventName {
 
 const BaseEventSchema = <K extends EventName>(eventName: K) =>
   z.object({
+    smesher: Base64Schema,
     state: z.literal(eventName),
     publishEpoch: z.optional(z.number()),
     time: z.string().datetime(),
   });
 
+type BaseEvent<K extends EventName> = ReturnType<typeof BaseEventSchema<K>>;
+
 function SmesherHistoryItem<T extends z.ZodRawShape>(
   state: EventName,
   detailsSchema: z.ZodObject<T>
-): z.ZodObject<
-  {
-    state: z.ZodLiteral<EventName>;
-    publishEpoch?: z.ZodOptional<z.ZodNumber>;
-    time: z.ZodString;
-  } & T
-> {
+): z.ZodObject<BaseEvent<EventName>['shape'] & T> {
   const baseSchema = BaseEventSchema(state);
   return z.object({
     ...baseSchema.shape,

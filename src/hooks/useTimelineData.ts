@@ -76,11 +76,12 @@ type SmesherMessages = Record<HexString, SmesherMessage>;
 const useTimelineData = () => {
   const { data: netInfo } = useNetworkInfo();
   const { data: poetInfo } = usePoETInfo();
-  const { data: smesherStates } = useSmesherStates();
+  const smesherStatesStore = useSmesherStates();
   const { data: rewards } = useRewards();
   const dataSetRef = useRef(new DataSet<TimelineItem>());
   const [smesherMessages, setSmesherMessages] = useState<SmesherMessages>({});
 
+  const { data: smesherStates } = smesherStatesStore;
   const setMessage = (
     id: HexString,
     type: SmesherMessage['type'],
@@ -271,7 +272,7 @@ const useTimelineData = () => {
     () =>
       smesherEventsById
         ? Object.fromEntries(
-            smesherEventsById.map(([idx, { history }]) => [idx, history.length])
+            smesherEventsById.map(([idx, states]) => [idx, states.length])
           )
         : {},
     [smesherEventsById]
@@ -280,7 +281,7 @@ const useTimelineData = () => {
   useEffect(() => {
     if (!netInfo || !poetInfo || !smesherEventsById) return;
     const hasManyIdentities = smesherEventsById.length > 1;
-    smesherEventsById.forEach(([id, { history }]) => {
+    smesherEventsById.forEach(([id, states]) => {
       const delta =
         (smesherEventsAmountById[id] ?? 0) - (prevSmesherEventsIdx[id] ?? 0);
       const group = hasManyIdentities ? `smesher_${id}` : 'events';
@@ -292,7 +293,7 @@ const useTimelineData = () => {
 
       const updated = <TimelineItem[]>[];
 
-      history.slice(-delta).forEach((item) => {
+      states.slice(-delta).forEach((item) => {
         const details = SmesherEvents.pickSmesherEventDetails(item);
 
         // Get layer, epoch, and round numbers

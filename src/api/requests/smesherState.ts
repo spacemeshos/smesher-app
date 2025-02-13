@@ -4,17 +4,22 @@ import {
   IdentityStateInfo,
   SmesherStatesResponseSchema,
 } from '../schemas/smesherStates';
+import SortOrder from '../sortOrder';
 
 const PER_PAGE = 100;
 
 export const fetchSmesherStatesChunk = (
   rpc: string,
   limit = PER_PAGE,
-  offset = 0
+  order = SortOrder.DESC,
+  to = new Date(),
+  from: Date | undefined = undefined
 ) => {
   const params = new URLSearchParams({
     limit: limit.toString(),
-    offset: offset.toString(),
+    order: order.toString(),
+    to: to.toISOString(),
+    ...(from ? { from: from.toISOString() } : {}),
   });
   return fetchJSON(
     `${rpc}/spacemesh.v2beta1.SmeshingIdentitiesService/States?${params}`,
@@ -23,67 +28,70 @@ export const fetchSmesherStatesChunk = (
     }
   )
     .then(parseResponse(SmesherStatesResponseSchema))
-    .then((res) => res.identities);
+    .then((res) => res.states);
 };
 
-export type SmesherStates = Record<string, { history: IdentityStateInfo[] }>;
+export type SmesherStates = IdentityStateInfo[];
 
-export const mergeSmesherStates = (
-  obj1: SmesherStates,
-  obj2: SmesherStates
-): SmesherStates =>
-  Object.keys(obj2).reduce(
-    (acc, key) => {
-      const history = [
-        ...(acc[key]?.history ?? []),
-        ...(obj2[key]?.history ?? []),
-      ];
-      return {
-        ...acc,
-        [key]: {
-          ...acc[key],
-          ...obj2[key],
-          history,
-        },
-      };
-    },
-    { ...obj1 }
-  );
-
-export const fetchSmesherStates = async (rpc: string) => {
-  const fetchNext = async (page: number): Promise<SmesherStates> => {
-    const res = await fetchSmesherStatesChunk(rpc, PER_PAGE, page * PER_PAGE);
-    if (Object.values(res).flatMap((x) => x.history).length === PER_PAGE) {
-      const next = await fetchNext(page + 1);
-      return mergeSmesherStates(res, next);
-    }
-    return res;
-  };
-
-  return fetchNext(0);
-};
-
-let isInProcess = false;
 export type SmesherStatesSetter = (states: SmesherStates) => void;
 export const fetchSmesherStatesWithCallback = (setter: SmesherStatesSetter) => {
-  let latestIdx = 0;
-  return async (rpc: string) => {
+  let isInProcess = false;
+  // Datetime range of oldest and newest fetched states
+  // Used to fetch all events within the specified range
+  let fetched: [Date, Date] = [new Date(), new Date()];
+
+  return async (
+    rpc: string,
+    order = SortOrder.ASC,
+    to = new Date(),
+    from: Date | undefined = undefined
+  ) => {
     if (isInProcess) return;
 
-    const fetchNext = async () => {
-      const res = await fetchSmesherStatesChunk(rpc, PER_PAGE, latestIdx);
-      const len = Object.values(res).flatMap((x) => x.history).length;
-      latestIdx += len;
+    const fetchNext = async (chunkTo: Date, chunkFrom?: Date) => {
+      const res = await fetchSmesherStatesChunk(
+        rpc,
+        PER_PAGE,
+        order,
+        chunkTo,
+        chunkFrom
+      );
+      const len = res.length;
+
+      const first = res[0];
+      const last = res[len - 1];
+      if (!first?.time) {
+        throw new Error(
+          `Smesher event (first) supposed to have timestamp: ${JSON.stringify(
+            first
+          )}`
+        );
+      }
+      if (!last?.time) {
+        throw new Error(
+          `Smesher event (last) supposed to have timestamp: ${JSON.stringify(
+            last
+          )}`
+        );
+      }
+      fetched =
+        order === SortOrder.ASC
+          ? [new Date(first.time), new Date(last.time)]
+          : [new Date(last.time), new Date(first.time)];
 
       setter(res);
       if (len === PER_PAGE) {
-        await fetchNext();
+        if (order === SortOrder.ASC) {
+          await fetchNext(to, fetched[1]);
+        } else {
+          await fetchNext(fetched[0], from);
+        }
       } else {
         isInProcess = false;
       }
     };
 
     isInProcess = true;
-    await fetchNext();
+    await fetchNext(to, from);
   };
 };
