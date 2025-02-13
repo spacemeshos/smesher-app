@@ -32,8 +32,9 @@ function SmesherIdentityDetails({
     <Flex w="100%" justifyContent="space-between" mb={2}>
       <Box w="55%">
         <Heading fontSize="sm">Eligibilities</Heading>
-        {Object.entries(eligibilities).map(
-          ([epoch, { eligibilities: epochEligibilities }]) => (
+        {Object.entries(eligibilities)
+          .sort(([a], [b]) => parseInt(b, 10) - parseInt(a, 10))
+          .map(([epoch, { eligibilities: epochEligibilities }]) => (
             <Box
               key={`Eligibilities_${id}_${epoch}`}
               my={2}
@@ -88,8 +89,7 @@ function SmesherIdentityDetails({
                   ))}
               </Box>
             </Box>
-          )
-        )}
+          ))}
         {Object.keys(eligibilities).length === 0 && (
           <Text fontSize="sm" color="gray.500">
             No eligible epochs and layers yet
