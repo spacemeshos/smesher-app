@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 
 import { fetchRewardsBySmesherIds } from '../api/requests/rewards';
@@ -17,28 +17,11 @@ const useRewardsStore = createDynamicStore<RewardsState>();
 
 const useRewards = () => {
   const store = useRewardsStore();
-  const idsRef = useRef(new Set<HexString>());
   const ids = useSmesherIds();
-  const [identities, setIdentities] = useState(<HexString[]>[]);
-
-  useEffect(() => {
-    // Update idsRef list
-    if (!ids) return;
-    let changed = false;
-    ids.forEach((id) => {
-      if (!idsRef.current.has(id)) {
-        idsRef.current.add(id);
-        changed = true;
-      }
-    });
-    if (changed) {
-      setIdentities(Array.from(idsRef.current));
-    }
-  }, [ids]);
 
   const fetchRewards = useMemo(
-    () => fetchRewardsBySmesherIds(Array.from(identities)),
-    [identities]
+    () => fetchRewardsBySmesherIds(ids ?? []),
+    [ids]
   );
   useEveryLayerFetcher(store, fetchRewards);
   return useMemo(() => createViewOnlyDynamicStore(store), [store]);
