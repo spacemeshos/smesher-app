@@ -18,3 +18,7 @@ export type NodeStatus = {
   processedLayer: number;
   latestLayer: number;
 };
+
+export type Activations = {
+  count: number;
+};

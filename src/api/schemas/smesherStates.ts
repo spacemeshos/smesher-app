@@ -23,14 +23,6 @@ export const SmesherHistoryItemSchema = z.discriminatedUnion('state', [
 
 export type IdentityStateInfo = z.infer<typeof SmesherHistoryItemSchema>;
 
-export const SmesherIdentitiesSchema = z.record(
-  z.object({
-    history: z.array(SmesherHistoryItemSchema),
-  })
-);
-
-export type SmesherIdentities = z.infer<typeof SmesherIdentitiesSchema>;
-
 export const SmesherStatesResponseSchema = z.object({
-  identities: SmesherIdentitiesSchema,
+  states: z.array(SmesherHistoryItemSchema),
 });

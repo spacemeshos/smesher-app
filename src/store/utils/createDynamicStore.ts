@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 
+export type SetterFn<T> = (prev: T | null) => T;
+
 export type DynamicStore<T> = {
   data: T | null;
   error: Error | null;
   lastUpdate: number;
-  setData: (data: T) => void;
+  setData: (arg: T | SetterFn<T>) => void;
   setError: (error: Error, noLastUpdate?: boolean) => void;
 };
 
@@ -19,7 +21,17 @@ const createDynamicStore = <T>() =>
     data: null,
     error: null,
     lastUpdate: 0,
-    setData: (data: T) => set({ data, error: null, lastUpdate: Date.now() }),
+    setData: (arg: T | SetterFn<T>) => {
+      if (typeof arg === 'function') {
+        set((state) => ({
+          data: (arg as SetterFn<T>)(state.data),
+          error: null,
+          lastUpdate: Date.now(),
+        }));
+      } else {
+        set({ data: arg as T, error: null, lastUpdate: Date.now() });
+      }
+    },
     setError: (error: Error, noLastUpdate = false) =>
       set({
         error,

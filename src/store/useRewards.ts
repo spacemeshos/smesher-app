@@ -1,47 +1,64 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 
 import { fetchRewardsBySmesherIds } from '../api/requests/rewards';
 import { HexString } from '../types/common';
-import { Reward } from '../types/reward';
+import { Reward, RewardsPerIdentity } from '../types/reward';
 
 import createDynamicStore, {
   createViewOnlyDynamicStore,
   getDynamicStoreDefaults,
+  SetterFn,
 } from './utils/createDynamicStore';
 import useEveryLayerFetcher from './utils/useEveryLayerFetcher';
-import useSmesherStates from './useSmesherStates';
+import { useSmesherIds } from './useSmesherStates';
 
 type RewardsState = Record<HexString, Reward[]>;
 const useRewardsStore = createDynamicStore<RewardsState>();
 
+type RecordList<T> = Record<string, T[]>;
+const merge = <T>(prev: RecordList<T>, next: RecordList<T>) =>
+  Object.entries(next).reduce(
+    (acc, [key, value]) => ({
+      ...acc,
+      [key]: [...(prev[key] || []), ...value],
+    }),
+    prev
+  );
+
 const useRewards = () => {
   const store = useRewardsStore();
-  const { data } = useSmesherStates();
-  const idsRef = useRef(new Set<HexString>());
-  const [identities, setIdentities] = useState(<HexString[]>[]);
-
-  useEffect(() => {
-    // Update idsRef list
-    if (!data) return;
-    const ids = Object.keys(data);
-    let changed = false;
-    ids.forEach((id) => {
-      if (!idsRef.current.has(id)) {
-        idsRef.current.add(id);
-        changed = true;
-      }
-    });
-    if (changed) {
-      setIdentities(Array.from(idsRef.current));
-    }
-  }, [data]);
+  const ids = useSmesherIds();
 
   const fetchRewards = useMemo(
-    () => fetchRewardsBySmesherIds(Array.from(identities)),
-    [identities]
+    () => fetchRewardsBySmesherIds(ids ?? []),
+    [ids]
   );
-  useEveryLayerFetcher(store, fetchRewards);
+
+  const { setData } = store;
+
+  const setDataToRecord = useCallback(
+    (input: RewardsPerIdentity | SetterFn<RewardsPerIdentity>) => {
+      if (typeof input === 'function') {
+        // Kinda imposible state
+        throw new Error(
+          'Rewards store is not supposed to have a setter function'
+        );
+      } else {
+        setData((prev) => (prev ? merge(prev, input) : input));
+      }
+    },
+    [setData]
+  );
+  const storeSetRecord = useMemo(
+    () => ({
+      ...store,
+      setData: setDataToRecord,
+    }),
+    [setDataToRecord, store]
+  );
+
+  useEveryLayerFetcher(storeSetRecord, fetchRewards);
   return useMemo(() => createViewOnlyDynamicStore(store), [store]);
 };
 

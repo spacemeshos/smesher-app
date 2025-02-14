@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Timeline, TimelineGroup } from 'vis-timeline';
 
-import { Box, Text, usePrevious } from '@chakra-ui/react';
+import { Box, Text, useOutsideClick, usePrevious } from '@chakra-ui/react';
 
 import useTimelineData from '../../hooks/useTimelineData';
 import { colors } from '../../theme';
@@ -39,10 +39,10 @@ const getGroups = ({
   {
     id: 'events',
     content: 'Events',
-    showNested: smesherIds.length > 1,
+    showNested: false,
     nestedGroups:
       smesherIds.length > 1
-        ? smesherIds.map((id) => `smesher_${id}`)
+        ? smesherIds.sort(sortHexString).map((id) => `smesher_${id}`)
         : undefined,
   },
   ...smesherIds.map(
@@ -207,6 +207,19 @@ export default function SmeshingTimeline() {
     y: 0,
     x: -1000,
     content: null,
+  });
+
+  useOutsideClick({
+    ref: rootRef,
+    handler: () => {
+      if (chartRef.current) {
+        setTooltip((prevState) => ({
+          ...prevState,
+          x: -1000,
+        }));
+        chartRef.current.setSelection([]);
+      }
+    },
   });
 
   useEffect(() => {
