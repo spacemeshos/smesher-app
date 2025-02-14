@@ -81,7 +81,8 @@ const useTimelineData = () => {
   const dataSetRef = useRef(new DataSet<TimelineItem>());
   const [smesherMessages, setSmesherMessages] = useState<SmesherMessages>({});
 
-  const { data: smesherStates } = smesherStatesStore;
+  const smesherStates = smesherStatesStore.data?.states;
+
   const setMessage = (
     id: HexString,
     type: SmesherMessage['type'],

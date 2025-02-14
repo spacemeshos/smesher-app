@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import {
@@ -14,6 +14,10 @@ import {
   Heading,
   List,
   ListItem,
+  Modal,
+  ModalContent,
+  ModalOverlay,
+  Spinner,
   Table,
   TableContainer,
   Text,
@@ -115,8 +119,34 @@ function DashboardScreen(): JSX.Element {
     [Rewards.data]
   );
 
+  const [forceClosed, setForceClosed] = useState(false);
+
   return (
     <>
+      <Modal
+        isOpen={!SmesherStates.data?.isHistoryLoaded && !forceClosed}
+        onClose={() => setForceClosed(true)}
+        isCentered
+        variant="dark"
+      >
+        <ModalOverlay />
+        <ModalContent
+          pointerEvents="none"
+          textAlign="center"
+          color="brand.lightGray"
+          alignContent="center"
+        >
+          <Box textAlign="center">
+            <Spinner speed="1.2s" size="xxl" color="brand.green" />
+            <Text fontWeight="bold" fontSize={28} mt={10} color="brand.green">
+              Loading smesher&apos;s data...
+            </Text>
+            <Text fontSize="sm" mt={3}>
+              Click anywhere to hide the spinner and start using the app.
+            </Text>
+          </Box>
+        </ModalContent>
+      </Modal>
       <Flex
         grow={1}
         w="100%"
@@ -235,7 +265,7 @@ function DashboardScreen(): JSX.Element {
           <OptionalError store={Proposals} prefix="Proposals: " />
 
           <Accordion w="100%" defaultIndex={[]} allowToggle>
-            {Object.keys(SmesherStates.data || {})
+            {Object.keys(SmesherStates.data?.states || {})
               .sort(sortHexString)
               .map((id, index) => {
                 const eligibilityStats = getEligibilityStats(id);

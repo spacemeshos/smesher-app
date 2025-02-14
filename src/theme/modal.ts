@@ -24,8 +24,22 @@ const baseStyle = definePartsStyle({
   },
 });
 
+const darkVariant = definePartsStyle({
+  overlay: {
+    bgGradient: 'radial(blackAlpha.800 10%, blackAlpha.400)',
+  },
+  dialog: {
+    bg: 'transparent',
+    border: 'none',
+    boxShadow: 'none',
+  },
+});
+
 const modalTheme = defineMultiStyleConfig({
   baseStyle,
+  variants: {
+    dark: darkVariant,
+  },
 });
 
 export default modalTheme;

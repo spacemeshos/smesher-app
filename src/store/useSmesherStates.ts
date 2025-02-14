@@ -33,6 +33,7 @@ const useSmesherStatesCore = () => {
     new Date(),
     new Date(),
   ]);
+  const [isHistoryLoaded, setHistoryLoaded] = useState(false);
 
   const { setData, data } = store;
 
@@ -83,10 +84,10 @@ const useSmesherStatesCore = () => {
           epochRangeLimit
         ) + netInfo.genesisTime;
       const fromDate = new Date(epochRangeLimitTime);
-      timeout = setTimeout(
-        () => fetcher(rpc, SortOrder.ASC, new Date(), fromDate),
-        5 * SECOND
-      );
+      timeout = setTimeout(async () => {
+        await fetcher(rpc, SortOrder.ASC, new Date(), fromDate);
+        setHistoryLoaded(true);
+      }, SECOND);
     }
 
     return () => {
@@ -119,13 +120,22 @@ const useSmesherStatesCore = () => {
     [data]
   );
 
+  const outputState = useMemo(
+    () =>
+      statesByIdentity && {
+        states: statesByIdentity,
+        isHistoryLoaded,
+      },
+    [isHistoryLoaded, statesByIdentity]
+  );
+
   return useMemo(
     () => ({
-      data: statesByIdentity,
+      data: outputState,
       error: store.error,
       lastUpdate: store.lastUpdate,
     }),
-    [statesByIdentity, store]
+    [outputState, store]
   );
 };
 
@@ -140,10 +150,10 @@ export const useSmesherIds = () => {
   const [ids, setIds] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!data) return;
+    if (!data?.states) return;
 
     let changed = false;
-    Object.keys(data).forEach((id) => {
+    Object.keys(data.states).forEach((id) => {
       if (!idsRef.current.has(id)) {
         idsRef.current.add(id);
         changed = true;
