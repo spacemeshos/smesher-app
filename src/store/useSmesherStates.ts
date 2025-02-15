@@ -5,7 +5,7 @@ import { fetchSmesherStatesWithCallback } from '../api/requests/smesherState';
 import { IdentityStateInfo } from '../api/schemas/smesherStates';
 import SortOrder from '../api/sortOrder';
 import { fromBase64 } from '../utils/base64';
-import { SECOND } from '../utils/constants';
+import { MINUTE, SECOND } from '../utils/constants';
 import { toHexString } from '../utils/hexString';
 import {
   getEpochByLayer,
@@ -35,11 +35,18 @@ const useSmesherStatesCore = () => {
   ]);
   const [isHistoryLoaded, setHistoryLoaded] = useState(false);
 
-  const { setData, data } = store;
+  const { setData, setError, data } = store;
 
   const fetcher = useMemo(
     () =>
-      fetchSmesherStatesWithCallback((next) =>
+      fetchSmesherStatesWithCallback((next, err) => {
+        if (!next) {
+          const e =
+            err ||
+            new Error('Cannot fetch smesher states due to unknown error');
+          setError(e, { dontDropData: true });
+          return;
+        }
         setData((prev) => {
           const res = prev ? [...prev, ...next] : next;
           const first = res[0];
@@ -57,9 +64,9 @@ const useSmesherStatesCore = () => {
             );
           }
           return res;
-        })
-      ),
-    [setData]
+        });
+      }),
+    [setData, setError]
   );
 
   useEffect(() => {
@@ -101,7 +108,7 @@ const useSmesherStatesCore = () => {
     if (fetcher && rpc && netInfo) {
       ival = setInterval(() => {
         fetcher(rpc, SortOrder.ASC, new Date(), fetchedRange[1]);
-      }, netInfo.layerDuration * SECOND);
+      }, Math.max((netInfo.layerDuration * SECOND) / 3, MINUTE));
     }
     return () => {
       if (ival) clearInterval(ival);
