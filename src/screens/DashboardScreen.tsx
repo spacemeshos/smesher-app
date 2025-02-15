@@ -123,6 +123,20 @@ function DashboardScreen(): JSX.Element {
 
   return (
     <>
+      <Button
+        pos="fixed"
+        top={4}
+        right={4}
+        onClick={() => {
+          caches.delete('cache-v1');
+          window.location.reload();
+        }}
+        variant="link"
+        color="brand.red"
+        fontWeight="normal"
+      >
+        [Clear cache]
+      </Button>
       <Modal
         isOpen={!SmesherStates.data?.isHistoryLoaded && !forceClosed}
         onClose={() => setForceClosed(true)}

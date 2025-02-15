@@ -1,8 +1,7 @@
 /* eslint-disable no-restricted-globals */
 /* eslint-disable no-console */
 
-const CACHE_NAME = 'api-cache-v1';
-const API_URL = 'http://localhost:8080/';
+const CACHE_NAME = 'cache-v1';
 
 self.addEventListener('install', () => {
   console.log('Service Worker installed');
@@ -14,25 +13,27 @@ self.addEventListener('error', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.url.startsWith(API_URL)) {
-    event.respondWith(
-      caches
-        .open(CACHE_NAME)
-        .then((cache) =>
-          cache
-            .match(event.request)
-            .then(
-              (cached) =>
-                cached ||
-                fetch(event.request).then((response) =>
-                  response.ok
-                    ? cache
-                        .put(event.request, response.clone())
-                        .then(() => response)
-                    : response
-                )
-            )
-        )
-    );
-  }
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.protocol === 'chrome-extension:') return;
+
+  event.respondWith(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) =>
+        cache
+          .match(event.request)
+          .then(
+            (cached) =>
+              cached ||
+              fetch(event.request).then((response) =>
+                response.ok
+                  ? cache
+                      .put(event.request, response.clone())
+                      .then(() => response)
+                  : response
+              )
+          )
+      )
+  );
 });
