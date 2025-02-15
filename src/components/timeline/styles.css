@@ -106,11 +106,11 @@
 
 .id-marker  {
   display: inline-block;
-  width: 1.2em;
-  height: 1.2em;
+  width: 1.5em;
+  height: 1.5em;
   font-size: 0.8em;
   text-align: center;
-  line-height: 1;
+  line-height: 1.4;
   border-radius: 100%;
   background: #7D7B7B;
   color: #000;
