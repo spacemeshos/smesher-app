@@ -137,10 +137,22 @@ function DashboardScreen(): JSX.Element {
           alignContent="center"
         >
           <Box textAlign="center">
-            <Spinner speed="1.2s" size="xxl" color="brand.green" />
-            <Text fontWeight="bold" fontSize={28} mt={10} color="brand.green">
-              Loading smesher&apos;s data...
-            </Text>
+            <Spinner
+              speed={SmesherStates.error ? '3s' : '1.2s'}
+              color={SmesherStates.error ? 'brand.red' : 'brand.green'}
+              size="xxl"
+            />
+            {SmesherStates.error ? (
+              <Text fontSize={28} color="brand.red">
+                {SmesherStates.error.message}
+                <br />
+                Please wait, reconnecting...
+              </Text>
+            ) : (
+              <Text fontWeight="bold" fontSize={28} mt={10} color="brand.green">
+                Loading smesher&apos;s data...
+              </Text>
+            )}
             <Text fontSize="sm" mt={3}>
               Click anywhere to hide the spinner and start using the app.
             </Text>
@@ -258,7 +270,10 @@ function DashboardScreen(): JSX.Element {
         </Accordion>
 
         <Box mb={2} mt={6} w="100%">
-          <Heading size="md">Identities</Heading>
+          <Heading size="md" mb={2}>
+            <StatusBulb status={getStatusByStore(SmesherStates)} mr={2} />
+            Identities
+          </Heading>
 
           <OptionalError store={SmesherStates} prefix="States: " />
           <OptionalError store={Eligibilities} prefix="Eligibilities: " />
