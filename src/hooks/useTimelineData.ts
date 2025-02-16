@@ -311,6 +311,7 @@ const useTimelineData = () => {
 
         if (item.state === SmesherEvents.EventName.ELIGIBLE) {
           const d = details as SmesherEvents.EligibleEventDetails;
+          const hasEligibilities = d.layers.length > 0;
           // Mark eligible / rewarded layers
           d.layers.forEach((layer) => {
             const eligibleLayer = getData(`layer_${layer.layer}`);
@@ -364,9 +365,10 @@ const useTimelineData = () => {
 
           setMessage(
             id,
-            'success',
-            // eslint-disable-next-line max-len
-            `Eligible in Layers ${eligibleLayersString} in epoch ${atEpoch}`
+            hasEligibilities ? 'success' : 'failed',
+            hasEligibilities
+              ? `Eligible in Layers ${eligibleLayersString} in epoch ${atEpoch}`
+              : `Not eligible in any layer in epoch ${atEpoch}`
           );
 
           // Mark eligible epoch
@@ -374,13 +376,15 @@ const useTimelineData = () => {
           if (epoch) {
             updated.push(
               updateItem(epoch, {
-                className: 'epoch eligible',
+                className: hasEligibilities ? 'epoch eligible' : 'epoch failed',
                 identities: {
                   [id]: {
-                    state: IdentityState.ELIGIBLE,
-                    details: `Eligible in Layers ${d.layers
-                      .map((l) => l.layer)
-                      .join(', ')}`,
+                    state: hasEligibilities
+                      ? IdentityState.ELIGIBLE
+                      : IdentityState.FAILURE,
+                    details: hasEligibilities
+                      ? `Eligible in Layers ${eligibleLayersString}`
+                      : `Not eligible in any layer`,
                   },
                 },
               })
