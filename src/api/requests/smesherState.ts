@@ -1,4 +1,6 @@
+import { SECOND } from '../../utils/constants';
 import fetchJSON from '../../utils/fetchJSON';
+import { delay } from '../../utils/promises';
 import { parseResponse } from '../schemas/error';
 import {
   IdentityStateInfo,
@@ -33,9 +35,12 @@ export const fetchSmesherStatesChunk = (
 
 export type SmesherStates = IdentityStateInfo[];
 
-export type SmesherStatesSetter = (states: SmesherStates) => void;
+export type SmesherStatesSetter = (
+  states: SmesherStates | null,
+  error: Error | null
+) => void;
 export const fetchSmesherStatesWithCallback = (setter: SmesherStatesSetter) => {
-  let isInProcess = false;
+  let isInProcess: null | Promise<void> = null;
   // Datetime range of oldest and newest fetched states
   // Used to fetch all events within the specified range
   let fetched: [Date, Date] = [new Date(), new Date()];
@@ -46,52 +51,61 @@ export const fetchSmesherStatesWithCallback = (setter: SmesherStatesSetter) => {
     to = new Date(),
     from: Date | undefined = undefined
   ) => {
-    if (isInProcess) return;
+    if (isInProcess) return isInProcess;
 
     const fetchNext = async (chunkTo: Date, chunkFrom?: Date) => {
-      const res = await fetchSmesherStatesChunk(
-        rpc,
-        PER_PAGE,
-        order,
-        chunkTo,
-        chunkFrom
-      );
-      const len = res.length;
-
-      const first = res[0];
-      const last = res[len - 1];
-      if (!first?.time) {
-        throw new Error(
-          `Smesher event (first) supposed to have timestamp: ${JSON.stringify(
-            first
-          )}`
+      try {
+        const res = await fetchSmesherStatesChunk(
+          rpc,
+          PER_PAGE,
+          order,
+          chunkTo,
+          chunkFrom
         );
-      }
-      if (!last?.time) {
-        throw new Error(
-          `Smesher event (last) supposed to have timestamp: ${JSON.stringify(
-            last
-          )}`
-        );
-      }
-      fetched =
-        order === SortOrder.ASC
-          ? [new Date(first.time), new Date(last.time)]
-          : [new Date(last.time), new Date(first.time)];
+        const len = res.length;
 
-      setter(res);
-      if (len === PER_PAGE) {
-        if (order === SortOrder.ASC) {
-          await fetchNext(to, fetched[1]);
-        } else {
-          await fetchNext(fetched[0], from);
+        const first = res[0];
+        const last = res[len - 1];
+        if (!first?.time) {
+          throw new Error(
+            `Smesher event (first) supposed to have timestamp: ${JSON.stringify(
+              first
+            )}`
+          );
         }
-      } else {
-        isInProcess = false;
+        if (!last?.time) {
+          throw new Error(
+            `Smesher event (last) supposed to have timestamp: ${JSON.stringify(
+              last
+            )}`
+          );
+        }
+        fetched =
+          order === SortOrder.ASC
+            ? [new Date(first.time), new Date(last.time)]
+            : [new Date(last.time), new Date(first.time)];
+
+        setter(res, null);
+        if (len === PER_PAGE) {
+          const args: [Date, Date?] =
+            order === SortOrder.ASC ? [to, fetched[1]] : [fetched[0], from];
+          await fetchNext(...args);
+        } else {
+          isInProcess = null;
+        }
+      } catch (err) {
+        if (err instanceof Error) {
+          setter(null, err);
+        }
+        await delay(5 * SECOND);
+        await fetchNext(chunkTo, chunkFrom);
       }
     };
 
-    isInProcess = true;
-    await fetchNext(to, from);
+    const result = fetchNext(to, from);
+    isInProcess = result;
+    await isInProcess;
+    isInProcess = null;
+    return result;
   };
 };

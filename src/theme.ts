@@ -10,6 +10,7 @@ import menuTheme from './theme/menu';
 import modalTheme from './theme/modal';
 import radioTheme from './theme/radio';
 import selectTheme from './theme/select';
+import spinnerTheme from './theme/spinner';
 import tableTheme from './theme/table';
 import tabsTheme from './theme/tabs';
 
@@ -54,6 +55,7 @@ const components = {
   Select: selectTheme,
   FormLabel: formLabelTheme,
   Table: tableTheme,
+  Spinner: spinnerTheme,
 };
 const theme = extendTheme({ config, colors, components, styles });
 

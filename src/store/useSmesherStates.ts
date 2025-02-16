@@ -5,7 +5,7 @@ import { fetchSmesherStatesWithCallback } from '../api/requests/smesherState';
 import { IdentityStateInfo } from '../api/schemas/smesherStates';
 import SortOrder from '../api/sortOrder';
 import { fromBase64 } from '../utils/base64';
-import { SECOND } from '../utils/constants';
+import { MINUTE, SECOND } from '../utils/constants';
 import { toHexString } from '../utils/hexString';
 import {
   getEpochByLayer,
@@ -33,12 +33,20 @@ const useSmesherStatesCore = () => {
     new Date(),
     new Date(),
   ]);
+  const [isHistoryLoaded, setHistoryLoaded] = useState(false);
 
-  const { setData, data } = store;
+  const { setData, setError, data } = store;
 
   const fetcher = useMemo(
     () =>
-      fetchSmesherStatesWithCallback((next) =>
+      fetchSmesherStatesWithCallback((next, err) => {
+        if (!next) {
+          const e =
+            err ||
+            new Error('Cannot fetch smesher states due to unknown error');
+          setError(e, { dontDropData: true });
+          return;
+        }
         setData((prev) => {
           const res = prev ? [...prev, ...next] : next;
           const first = res[0];
@@ -56,9 +64,9 @@ const useSmesherStatesCore = () => {
             );
           }
           return res;
-        })
-      ),
-    [setData]
+        });
+      }),
+    [setData, setError]
   );
 
   useEffect(() => {
@@ -83,10 +91,10 @@ const useSmesherStatesCore = () => {
           epochRangeLimit
         ) + netInfo.genesisTime;
       const fromDate = new Date(epochRangeLimitTime);
-      timeout = setTimeout(
-        () => fetcher(rpc, SortOrder.ASC, new Date(), fromDate),
-        5 * SECOND
-      );
+      timeout = setTimeout(async () => {
+        await fetcher(rpc, SortOrder.ASC, new Date(), fromDate);
+        setHistoryLoaded(true);
+      }, SECOND);
     }
 
     return () => {
@@ -100,7 +108,7 @@ const useSmesherStatesCore = () => {
     if (fetcher && rpc && netInfo) {
       ival = setInterval(() => {
         fetcher(rpc, SortOrder.ASC, new Date(), fetchedRange[1]);
-      }, netInfo.layerDuration * SECOND);
+      }, Math.max((netInfo.layerDuration * SECOND) / 3, MINUTE));
     }
     return () => {
       if (ival) clearInterval(ival);
@@ -119,13 +127,22 @@ const useSmesherStatesCore = () => {
     [data]
   );
 
+  const outputState = useMemo(
+    () =>
+      statesByIdentity && {
+        states: statesByIdentity,
+        isHistoryLoaded,
+      },
+    [isHistoryLoaded, statesByIdentity]
+  );
+
   return useMemo(
     () => ({
-      data: statesByIdentity,
+      data: outputState,
       error: store.error,
       lastUpdate: store.lastUpdate,
     }),
-    [statesByIdentity, store]
+    [outputState, store]
   );
 };
 
@@ -140,10 +157,10 @@ export const useSmesherIds = () => {
   const [ids, setIds] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!data) return;
+    if (!data?.states) return;
 
     let changed = false;
-    Object.keys(data).forEach((id) => {
+    Object.keys(data.states).forEach((id) => {
       if (!idsRef.current.has(id)) {
         idsRef.current.add(id);
         changed = true;

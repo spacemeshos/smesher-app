@@ -2,12 +2,17 @@ import { create } from 'zustand';
 
 export type SetterFn<T> = (prev: T | null) => T;
 
+export type ErrorSetOpts = {
+  dontDropData?: boolean;
+  noLastUpdate?: boolean;
+};
+
 export type DynamicStore<T> = {
   data: T | null;
   error: Error | null;
   lastUpdate: number;
   setData: (arg: T | SetterFn<T>) => void;
-  setError: (error: Error, noLastUpdate?: boolean) => void;
+  setError: (error: Error, opts?: ErrorSetOpts) => void;
 };
 
 export type ViewOnlyDynamicStore<T> = {
@@ -32,11 +37,14 @@ const createDynamicStore = <T>() =>
         set({ data: arg as T, error: null, lastUpdate: Date.now() });
       }
     },
-    setError: (error: Error, noLastUpdate = false) =>
+    setError: (
+      error: Error,
+      opts: ErrorSetOpts = { dontDropData: false, noLastUpdate: false }
+    ) =>
       set({
         error,
-        data: null,
-        ...(noLastUpdate ? {} : { lastUpdate: Date.now() }),
+        ...(opts.dontDropData ? {} : { data: null }),
+        ...(opts.noLastUpdate ? {} : { lastUpdate: Date.now() }),
       }),
   }));
 
