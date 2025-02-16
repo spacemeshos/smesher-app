@@ -107,7 +107,9 @@ function TimelineItemDetails({ item }: { item: TimelineItem }): JSX.Element {
         }
         case EventName.ELIGIBLE: {
           const details = item.data.details as EligibleEventDetails;
-          return (
+          return details.layers.length === 0 ? (
+            <Text mt={2}>No eligible layers in the epoch</Text>
+          ) : (
             <Text mt={2}>
               Eligible for layer{details.layers.length > 1 ? 's' : ''}:
               <br />

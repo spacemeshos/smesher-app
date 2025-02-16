@@ -794,7 +794,9 @@ const useTimelineData = () => {
           className:
             item.state === SmesherEvents.EventName.RETRYING ||
             item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED ||
-            item.state === SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED
+            item.state === SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED ||
+            (item.state === SmesherEvents.EventName.ELIGIBLE &&
+              !(item as SmesherEvents.EligibleEvent).eligible?.layers?.length)
               ? 'smesher-event failure'
               : 'smesher-event',
           data: {
