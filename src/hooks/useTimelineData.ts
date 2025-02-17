@@ -108,7 +108,7 @@ const useTimelineData = () => {
   useEffect(() => {
     let ival: ReturnType<typeof setInterval> | null = null;
     if (netInfo) {
-      ival = setInterval(() => {
+      const updateTimeData = () => {
         setLayerByTime(
           getLayerByTime(netInfo.layerDuration, netInfo.genesisTime, Date.now())
         );
@@ -117,7 +117,9 @@ const useTimelineData = () => {
             getPoetRoundByTime(poetInfo.config, netInfo, Date.now())
           );
         }
-      }, 5 * SECOND);
+      };
+      ival = setInterval(updateTimeData, 5 * SECOND);
+      updateTimeData();
     }
     return () => {
       if (ival) clearInterval(ival);
@@ -138,7 +140,11 @@ const useTimelineData = () => {
   //
   // Computed values
   //
-  const epochsToDisplay = currentEpoch + 5;
+  const epochsToDisplay = useMemo(() => {
+    if (!netInfo || !poetInfo) return 0;
+    return currentEpoch + 5;
+  }, [currentEpoch, netInfo, poetInfo]);
+
   const layersToDisplay = epochsToDisplay * (netInfo?.layersPerEpoch ?? 1);
 
   const prevEpochsToDisplay = usePrevious(epochsToDisplay);
