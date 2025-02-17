@@ -5,6 +5,7 @@ import { Box, Text, useOutsideClick, usePrevious } from '@chakra-ui/react';
 
 import useTimelineData from '../../hooks/useTimelineData';
 import { colors } from '../../theme';
+import { HexString } from '../../types/common';
 import {
   IdentityState,
   IndentityStatus,
@@ -149,13 +150,20 @@ const calculateTooltipPosition = (
   return { x: left, y: top };
 };
 
-const getSmesherMarkers = (ids: Record<string, IndentityStatus>) => {
+const getSmesherMarkers = (
+  ids: Record<HexString, IndentityStatus>,
+  order: HexString[]
+) => {
   const markers = Object.entries(ids)
     .sort(([a], [b]) => sortHexString(a, b))
-    .map(([id, { state, details }], index) => {
+    .map(([id, data]) => {
+      const num = order.indexOf(id);
+      const numStr = num === -1 ? '?' : String(num + 1);
+
+      const { state, details } = data;
       const newEl = document.createElement('div');
       newEl.title = `${details}\n${id}`;
-      newEl.innerText = String(index + 1);
+      newEl.innerText = numStr;
 
       switch (state) {
         case IdentityState.IDLE: {
@@ -208,6 +216,7 @@ export default function SmeshingTimeline() {
     x: -1000,
     content: null,
   });
+  const smesherIds = useRef<HexString[]>([]);
 
   useOutsideClick({
     ref: rootRef,
@@ -257,7 +266,10 @@ export default function SmeshingTimeline() {
             const identities = document.createElement('div');
             identities.className = 'identities';
 
-            getSmesherMarkers(item.data.details.identities).forEach((el) => {
+            getSmesherMarkers(
+              item.data.details.identities,
+              smesherIds.current ?? []
+            ).forEach((el) => {
               if (!el) return;
               if (typeof el === 'string') {
                 const span = document.createElement('span');
@@ -352,7 +364,7 @@ export default function SmeshingTimeline() {
                           : ''}
                       </Text>
                     )}
-                    <TimelineItemDetails item={item} />
+                    <TimelineItemDetails item={item} order={smesherIds} />
                   </div>
                 );
               })}
@@ -388,6 +400,7 @@ export default function SmeshingTimeline() {
     data.genesisTime,
     data.items,
     data.nestedEventGroups,
+    smesherIds,
     zoomedIn,
   ]);
 
@@ -396,13 +409,16 @@ export default function SmeshingTimeline() {
       prevGroups !== data.nestedEventGroups ||
       prevLayersHidden !== isLayersHidden
     ) {
+      const ids = data.nestedEventGroups.sort(sortHexString);
       const newGroups = getGroups({
-        smesherIds: data.nestedEventGroups,
+        smesherIds: ids,
         isLayersHidden,
       });
       chartRef.current?.setGroups(newGroups);
+      smesherIds.current = ids;
     }
   }, [data.nestedEventGroups, isLayersHidden, prevGroups, prevLayersHidden]);
+
   return (
     <Box w="100%" pos="relative" ref={rootRef}>
       <Box
