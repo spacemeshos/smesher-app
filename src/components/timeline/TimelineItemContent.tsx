@@ -1,3 +1,5 @@
+import { MutableRefObject } from 'react';
+
 import { Box, Text } from '@chakra-ui/react';
 
 import {
@@ -8,6 +10,7 @@ import {
   ProposalPublishFailedEventDetails,
   RetryingEventDetails,
 } from '../../api/schemas/smesherEvents';
+import { HexString } from '../../types/common';
 import {
   IdentityState,
   isEpochItem,
@@ -18,8 +21,16 @@ import {
   TimelineItem,
   TimelineItemType,
 } from '../../types/timeline';
+import { getAbbreviatedHexString } from '../../utils/abbr';
+import { sortHexString } from '../../utils/hexString';
 
-function TimelineItemDetails({ item }: { item: TimelineItem }): JSX.Element {
+function TimelineItemDetails({
+  item,
+  order,
+}: {
+  item: TimelineItem;
+  order: MutableRefObject<HexString[]>;
+}): JSX.Element {
   if (!isTimelineItem(item)) {
     return <div />;
   }
@@ -34,25 +45,46 @@ function TimelineItemDetails({ item }: { item: TimelineItem }): JSX.Element {
       const { details } = item.data;
       return (
         <Box mt={2}>
-          {Object.entries(details.identities).map(([id, state]) => {
-            const color =
-              state.state === IdentityState.FAILURE ? 'brand.red' : undefined;
-            return (
-              <Text key={id} mb={1} color={color}>
-                <strong>
-                  {id}: {state.state}
-                </strong>
-                {state.details ? (
-                  <>
-                    <br />
-                    {state.details}
-                  </>
-                ) : (
-                  ''
-                )}
-              </Text>
-            );
-          })}
+          {Object.entries(details.identities)
+            .sort(([a], [b]) => sortHexString(a, b))
+            .map(([id, state]) => {
+              const idClassName = (() => {
+                switch (state.state) {
+                  case IdentityState.SUCCESS:
+                    return 'success';
+                  case IdentityState.FAILURE:
+                    return 'failure';
+                  case IdentityState.ELIGIBLE:
+                    return 'eligible';
+                  default:
+                    return undefined;
+                }
+              })();
+              const num = order.current?.indexOf(id) ?? -1;
+              const numStr = num === -1 ? '?' : String(num + 1);
+              return (
+                <Text key={id} mb={1}>
+                  <strong>
+                    <Text
+                      as="span"
+                      className={`id-marker ${idClassName}`}
+                      mr={0.5}
+                    >
+                      {numStr}
+                    </Text>
+                    {getAbbreviatedHexString(id)}: {state.state}
+                  </strong>
+                  {state.details ? (
+                    <>
+                      <br />
+                      {state.details}
+                    </>
+                  ) : (
+                    ''
+                  )}
+                </Text>
+              );
+            })}
         </Box>
       );
     }
