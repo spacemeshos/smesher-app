@@ -21,7 +21,6 @@ import {
   TimelineItem,
   TimelineItemType,
 } from '../../types/timeline';
-import { getAbbreviatedHexString } from '../../utils/abbr';
 import { sortHexString } from '../../utils/hexString';
 
 function TimelineItemDetails({
@@ -72,7 +71,10 @@ function TimelineItemDetails({
                     >
                       {numStr}
                     </Text>
-                    {getAbbreviatedHexString(id)}: {state.state}
+                    <Text as="span" wordBreak="break-all" whiteSpace="pre-wrap">
+                      {id}:{' '}
+                    </Text>
+                    <Text as="span">{state.state}</Text>
                   </strong>
                   {state.details ? (
                     <>

@@ -640,7 +640,7 @@ const useTimelineData = () => {
         }
         if (item.state === SmesherEvents.EventName.POET_REGISTERED) {
           const affectedRound = atRound + 1;
-          const affectedEpoch = atRound + 2;
+          const affectedEpoch = affectedRound + 2;
           const round = getData(
             `poet_round_${affectedRound}`
           ) as TimelineItem<PoetRoundDetails>;
@@ -697,7 +697,7 @@ const useTimelineData = () => {
                   },
                 })
               );
-              const epoch = getData(`epoch_${affectedEpoch + 1}`);
+              const epoch = getData(`epoch_${affectedEpoch}`);
               if (epoch) {
                 updated.push(
                   updateItem(epoch, {
