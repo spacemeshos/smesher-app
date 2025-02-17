@@ -316,86 +316,103 @@ const useTimelineData = () => {
         // Update epochs and layers
 
         if (item.state === SmesherEvents.EventName.ELIGIBLE) {
-          const d = details as SmesherEvents.EligibleEventDetails;
-          const hasEligibilities = d.layers.length > 0;
-          // Mark eligible / rewarded layers
-          d.layers.forEach((layer) => {
-            const eligibleLayer = getData(`layer_${layer.layer}`);
-            if (eligibleLayer) {
-              const rewarded = smesherRewards.find(
-                (r) => r.layerPaid === layer.layer
-              );
-              const missed = !rewarded && layerByTime > layer.layer;
-              eligibilities[atEpoch] = {
-                ...eligibilities[atEpoch],
-                [layer.layer]: rewarded ? 'rewarded' : 'eligible',
-              };
-              updated.push(
-                updateItem(eligibleLayer, {
-                  // eslint-disable-next-line no-nested-ternary
-                  className: rewarded
-                    ? 'layer rewarded'
-                    : missed
-                    ? 'layer failed'
-                    : 'layer eligible',
-                  identities: {
+          (() => {
+            const d = details as SmesherEvents.EligibleEventDetails;
+            const hasEligibilities = d.layers.length > 0;
+            const epoch = getData(`epoch_${atEpoch}`);
+
+            if (!hasEligibilities && epoch && epoch.className === 'epoch') {
+              // If got event with 0 eligible layer AND epoch has
+              // no pending/eligible statuses, then suppose Smesher
+              // just started and is not expecting to be eligible (no error)
+              //
+              // TODO: Refactor using more bullet-proof algorithms, like
+              //       checking for having ATX for that epoch
+              return;
+            }
+
+            // Mark eligible / rewarded layers
+            d.layers.forEach((layer) => {
+              const eligibleLayer = getData(`layer_${layer.layer}`);
+              if (eligibleLayer) {
+                const rewarded = smesherRewards.find(
+                  (r) => r.layerPaid === layer.layer
+                );
+                const missed = !rewarded && layerByTime > layer.layer;
+                eligibilities[atEpoch] = {
+                  ...eligibilities[atEpoch],
+                  [layer.layer]: rewarded ? 'rewarded' : 'eligible',
+                };
+                updated.push(
+                  updateItem(eligibleLayer, {
                     // eslint-disable-next-line no-nested-ternary
-                    [id]: rewarded
-                      ? {
-                          state: IdentityState.SUCCESS,
-                          details: `Got reward for Layer ${
-                            layer.layer
-                          }: ${formatSmidge(
-                            // eslint-disable-next-line max-len
-                            rewarded.rewardForFees + rewarded.rewardForLayer
-                          )} to ${rewarded.coinbase} (weight ${layer.count})`,
-                        }
+                    className: rewarded
+                      ? 'layer rewarded'
                       : missed
-                      ? {
-                          state: IdentityState.FAILURE,
-                          // eslint-disable-next-line max-len
-                          details: `Missed publishing proposal at layer ${layer.layer}`,
-                        }
-                      : {
-                          state: IdentityState.ELIGIBLE,
-                          details: `Eligible in Layer ${layer.layer}`,
-                        },
+                      ? 'layer failed'
+                      : 'layer eligible',
+                    identities: {
+                      // eslint-disable-next-line no-nested-ternary
+                      [id]: rewarded
+                        ? {
+                            state: IdentityState.SUCCESS,
+                            details: `Got reward for Layer ${
+                              layer.layer
+                            }: ${formatSmidge(
+                              // eslint-disable-next-line max-len
+                              rewarded.rewardForFees + rewarded.rewardForLayer
+                            )} to ${rewarded.coinbase} (weight ${layer.count})`,
+                          }
+                        : missed
+                        ? {
+                            state: IdentityState.FAILURE,
+                            // eslint-disable-next-line max-len
+                            details: `Missed publishing proposal at layer ${layer.layer}`,
+                          }
+                        : {
+                            state: IdentityState.ELIGIBLE,
+                            details: `Eligible in Layer ${layer.layer}`,
+                          },
+                    },
+                    content: layer.layer.toString(),
+                  })
+                );
+              }
+            });
+
+            const eligibleLayersString = d.layers
+              .map((l) => l.layer)
+              .join(', ');
+
+            setMessage(
+              id,
+              hasEligibilities ? 'success' : 'failed',
+              hasEligibilities
+                ? `Eligible in Layers ${eligibleLayersString} in epoch ${atEpoch}` // eslint-disable-line max-len
+                : `Not eligible in any layer in epoch ${atEpoch}`
+            );
+
+            // Mark eligible epoch
+            if (epoch) {
+              updated.push(
+                updateItem(epoch, {
+                  className: hasEligibilities
+                    ? 'epoch eligible'
+                    : 'epoch failed',
+                  identities: {
+                    [id]: {
+                      state: hasEligibilities
+                        ? IdentityState.ELIGIBLE
+                        : IdentityState.FAILURE,
+                      details: hasEligibilities
+                        ? `Eligible in Layers ${eligibleLayersString}`
+                        : `Not eligible in any layer`,
+                    },
                   },
-                  content: layer.layer.toString(),
                 })
               );
             }
-          });
-
-          const eligibleLayersString = d.layers.map((l) => l.layer).join(', ');
-
-          setMessage(
-            id,
-            hasEligibilities ? 'success' : 'failed',
-            hasEligibilities
-              ? `Eligible in Layers ${eligibleLayersString} in epoch ${atEpoch}`
-              : `Not eligible in any layer in epoch ${atEpoch}`
-          );
-
-          // Mark eligible epoch
-          const epoch = getData(`epoch_${atEpoch}`);
-          if (epoch) {
-            updated.push(
-              updateItem(epoch, {
-                className: hasEligibilities ? 'epoch eligible' : 'epoch failed',
-                identities: {
-                  [id]: {
-                    state: hasEligibilities
-                      ? IdentityState.ELIGIBLE
-                      : IdentityState.FAILURE,
-                    details: hasEligibilities
-                      ? `Eligible in Layers ${eligibleLayersString}`
-                      : `Not eligible in any layer`,
-                  },
-                },
-              })
-            );
-          }
+          })();
         }
 
         if (item.state === SmesherEvents.EventName.PROPOSAL_PUBLISHED) {
