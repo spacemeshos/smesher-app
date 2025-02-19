@@ -27,8 +27,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      - name: Replace $VERSION in config.ts
-        run: sed -i 's|\$VERSION|${{ github.ref_name }}|g' config.ts
+      - id: package-version
+        uses: tyankatsu0105/read-package-version-actions@v1
+      - uses: olegtarasov/get-tag@v2.1
+        id: tagName
+      - name: Tag and version are equals
+        if: ${{ steps.tagName.outputs.tag != steps.package-version.outputs.version }}
+        run: |
+          echo "Tag does not match Version."
+          echo "Tag: ${{ steps.tagName.outputs.tag }}"
+          echo "Version: v${{ steps.package-version.outputs.version }}"
+          exit 1
       - name: Install dependencies and build
         run: |
           yarn
