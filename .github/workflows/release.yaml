@@ -3,8 +3,8 @@ name: Build and Release
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    tags:
+      - '*'
 
 jobs:
   deploy:
@@ -12,15 +12,47 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
       - name: Install dependencies and build
         run: |
           yarn
           yarn build
-
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy ./dist --project-name=${{ secrets.CLOUDFLARE_PAGE_PROJECT }}
+  deploy-to-r2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - id: package-version
+        uses: tyankatsu0105/read-package-version-actions@v1
+      - uses: olegtarasov/get-tag@v2.1
+        id: tagName
+      - name: Tag and version are equals
+        if: ${{ steps.tagName.outputs.tag != steps.package-version.outputs.version }}
+        run: |
+          echo "Tag does not match Version."
+          echo "Tag: ${{ steps.tagName.outputs.tag }}"
+          echo "Version: v${{ steps.package-version.outputs.version }}"
+          exit 1
+      - name: Install dependencies and build
+        run: |
+          yarn
+          yarn build
+      - name: Install aws-cli
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.22.35.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install --update
+      - name: upload ./dist to R2
+        run: >
+          aws s3 cp --recursive ./dist
+          s3://${{ secrets.CLOUDFLARE_APP_BUCKET }}/${{ github.ref_name }}
+          --endpoint-url https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        env:
+            AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
+            AWS_REGION: us-east-1
