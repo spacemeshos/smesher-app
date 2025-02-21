@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Timeline, TimelineGroup } from 'vis-timeline';
+import { MutableRefObject, useEffect, useRef, useState } from 'react';
+import { Timeline } from 'vis-timeline';
 
 import { Box, Text, useOutsideClick, usePrevious } from '@chakra-ui/react';
+import { useDebounce } from '@uidotdev/usehooks';
 
 import useTimelineData from '../../hooks/useTimelineData';
 import useNetworkInfo from '../../store/useNetworkInfo';
@@ -12,7 +13,6 @@ import {
   IndentityStatus,
   TimelineItem,
 } from '../../types/timeline';
-import { getAbbreviatedHexString } from '../../utils/abbr';
 import { SECOND } from '../../utils/constants';
 import { sortHexString } from '../../utils/hexString';
 
@@ -20,49 +20,8 @@ import TimelineItemDetails from './TimelineItemContent';
 
 import 'vis-timeline/dist/vis-timeline-graph2d.min.css';
 import './styles.css';
-import { useDebounce } from '@uidotdev/usehooks';
 
 const DEFAULT_ZOOM_MAX = 60 * SECOND * 60 * 24 * 365; // Year
-
-type GetGroupsParams = {
-  smesherIds?: string[];
-  isLayerBorderHidden?: boolean;
-  isLayersOptimized?: boolean;
-};
-const getGroups = ({
-  smesherIds = [],
-  isLayerBorderHidden = false,
-  isLayersOptimized = false,
-}: GetGroupsParams): TimelineGroup[] => [
-  { id: 'epochs', content: 'Epochs' },
-  {
-    id: 'layers',
-    content: 'Layers',
-    className: isLayerBorderHidden ? 'hidden' : '',
-    visible: !isLayersOptimized,
-  },
-  {
-    id: 'layers_optimized',
-    content: 'Layers',
-    visible: isLayersOptimized,
-  },
-  { id: 'poet', content: 'PoET' },
-  {
-    id: 'events',
-    content: 'Events',
-    showNested: false,
-    nestedGroups:
-      smesherIds.length > 1
-        ? smesherIds.sort(sortHexString).map((id) => `smesher_${id}`)
-        : undefined,
-  },
-  ...smesherIds.map(
-    (id): TimelineGroup => ({
-      id: `smesher_${id}`,
-      content: getAbbreviatedHexString(id),
-    })
-  ),
-];
 
 type CursorState = {
   x: number;
@@ -162,12 +121,12 @@ const calculateTooltipPosition = (
 
 const getSmesherMarkers = (
   ids: Record<HexString, IndentityStatus>,
-  order: HexString[]
+  order: MutableRefObject<HexString[]>
 ) => {
   const markers = Object.entries(ids)
     .sort(([a], [b]) => sortHexString(a, b))
     .map(([id, data]) => {
-      const num = order.indexOf(id);
+      const num = order.current.indexOf(id);
       const numStr = num === -1 ? '?' : String(num + 1);
 
       const { state, details } = data;
@@ -214,7 +173,6 @@ export default function SmeshingTimeline() {
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const data = useTimelineData();
   const { data: netInfo } = useNetworkInfo();
-  const prevGroups = usePrevious(data.nestedEventGroups);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM_MAX);
   const [cursor, setCursor] = useState<CursorState>({
     x: -1000,
@@ -241,10 +199,21 @@ export default function SmeshingTimeline() {
   });
 
   useEffect(() => {
+    // Update smesher ids Ref
+    if (
+      data.smesherIds &&
+      (smesherIds.current.length !== data.smesherIds.length ||
+        smesherIds.current.some((id, i) => id !== data.smesherIds[i]))
+    ) {
+      smesherIds.current = data.smesherIds;
+    }
+  }, [data.smesherIds]);
+
+  useEffect(() => {
     if (!ref.current) return;
 
     if (!chartRef.current) {
-      chartRef.current = new Timeline(ref.current, data.items, getGroups({}), {
+      chartRef.current = new Timeline(ref.current, data.items, data.groups, {
         autoResize: true,
         showCurrentTime: true,
         preferZoom: true,
@@ -275,19 +244,18 @@ export default function SmeshingTimeline() {
             const identities = document.createElement('div');
             identities.className = 'identities';
 
-            getSmesherMarkers(
-              item.data.details.identities,
-              smesherIds.current ?? []
-            ).forEach((el) => {
-              if (!el) return;
-              if (typeof el === 'string') {
-                const span = document.createElement('span');
-                span.innerHTML = el;
-                identities.appendChild(span);
-                return;
+            getSmesherMarkers(item.data.details.identities, smesherIds).forEach(
+              (el) => {
+                if (!el) return;
+                if (typeof el === 'string') {
+                  const span = document.createElement('span');
+                  span.innerHTML = el;
+                  identities.appendChild(span);
+                  return;
+                }
+                identities.appendChild(el);
               }
-              identities.appendChild(el);
-            });
+            );
 
             tpl.appendChild(title);
             tpl.appendChild(identities);
@@ -386,9 +354,9 @@ export default function SmeshingTimeline() {
   }, [
     data.epochDuration,
     data.genesisTime,
+    data.groups,
     data.items,
-    data.nestedEventGroups,
-    smesherIds,
+    data.smesherIds,
   ]);
 
   // Calculate flags depending on zoom level
@@ -399,33 +367,37 @@ export default function SmeshingTimeline() {
   useEffect(() => {
     if (!netInfo) return;
     setLayerBorderHidden(zoom / 1000 > netInfo.layerDuration * 100);
-    setLayersOptimized(zoom / 1000 > netInfo.layerDuration * 500);
+    setLayersOptimized(zoom / 1000 > netInfo.layerDuration * 300);
   }, [netInfo, zoom]);
 
   // Update groups and their flags
   useEffect(() => {
     if (!chartRef.current || !netInfo) return;
     if (
-      prevGroups === data.nestedEventGroups &&
       isLayerBorderHidden === prevLayerBorderHidden &&
       isLayersOptimized === prevLayersOptimized
     )
       return;
 
-    const ids = data.nestedEventGroups.sort(sortHexString);
-    const newGroups = getGroups({
-      smesherIds: ids,
-      isLayerBorderHidden,
-      isLayersOptimized,
-    });
-    chartRef.current?.setGroups(newGroups);
-    smesherIds.current = ids;
+    const layers = data.groups.get('layers');
+    const layersOptimized = data.groups.get('layers_optimized');
+    if (!layers || !layersOptimized) return;
+    data.groups.update([
+      {
+        ...layers,
+        className: isLayerBorderHidden ? 'layers hidden' : 'layers',
+        visible: !isLayersOptimized,
+      },
+      {
+        ...layersOptimized,
+        visible: isLayersOptimized,
+      },
+    ]);
   }, [
-    data.nestedEventGroups,
+    data.groups,
     isLayerBorderHidden,
     isLayersOptimized,
     netInfo,
-    prevGroups,
     prevLayerBorderHidden,
     prevLayersOptimized,
   ]);

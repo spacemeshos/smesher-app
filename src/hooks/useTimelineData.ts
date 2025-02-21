@@ -20,6 +20,7 @@ import {
   TimelineItem,
   TimelineItemType,
 } from '../types/timeline';
+import { getAbbreviatedHexString } from '../utils/abbr';
 import { SECOND } from '../utils/constants';
 import { sortHexString } from '../utils/hexString';
 import { formatSmidge } from '../utils/smh';
@@ -140,6 +141,7 @@ const useTimelineData = () => {
       {
         id: 'layers',
         content: 'Layers',
+        className: 'visible',
       },
       {
         id: 'layers_optimized',
@@ -920,12 +922,32 @@ const useTimelineData = () => {
     return ids.length > 1 ? ids : [];
   }, [smesherStates]);
 
+  useEffect(() => {
+    groupSetRef.current.update({
+      id: 'events',
+      nestedGroups:
+        smesherIds.length > 1
+          ? smesherIds.map((id) => `smesher_${id}`)
+          : undefined,
+    });
+
+    groupSetRef.current.update(
+      smesherIds.map(
+        (id): TimelineGroup => ({
+          id: `smesher_${id}`,
+          content: getAbbreviatedHexString(id),
+        })
+      )
+    );
+  }, [smesherIds]);
+
   return {
     currentEpoch,
     genesisTime: netInfo?.genesisTime,
     epochDuration,
     items: dataSetRef.current,
-    nestedEventGroups: smesherIds,
+    groups: groupSetRef.current,
+    smesherIds,
     smesherMessages,
   };
 };
