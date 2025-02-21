@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DataSet } from 'vis-data';
+import { TimelineGroup } from 'vis-timeline';
 
 import { usePrevious } from '@chakra-ui/react';
 
@@ -20,6 +21,7 @@ import {
   TimelineItemType,
 } from '../types/timeline';
 import { SECOND } from '../utils/constants';
+import { sortHexString } from '../utils/hexString';
 import { formatSmidge } from '../utils/smh';
 import {
   getCycleGapEnd,
@@ -79,6 +81,7 @@ const useTimelineData = () => {
   const smesherStatesStore = useSmesherStates();
   const { data: rewards } = useRewards();
   const dataSetRef = useRef(new DataSet<TimelineItem>());
+  const groupSetRef = useRef(new DataSet<TimelineGroup>());
   const [smesherMessages, setSmesherMessages] = useState<SmesherMessages>({});
 
   const smesherStates = smesherStatesStore.data?.states;
@@ -101,34 +104,10 @@ const useTimelineData = () => {
   const updateData = (data: TimelineItem[]) => dataSetRef.current.update(data);
 
   //
-  // Update current time twice per layer
+  // Calculate layers and epochs
   //
   const [layerByTime, setLayerByTime] = useState(0);
   const [currentPoetRound, setCurrentPoetRound] = useState(0);
-  useEffect(() => {
-    let ival: ReturnType<typeof setInterval> | null = null;
-    if (netInfo) {
-      const updateTimeData = () => {
-        setLayerByTime(
-          getLayerByTime(netInfo.layerDuration, netInfo.genesisTime, Date.now())
-        );
-        if (poetInfo) {
-          setCurrentPoetRound(
-            getPoetRoundByTime(poetInfo.config, netInfo, Date.now())
-          );
-        }
-      };
-      ival = setInterval(updateTimeData, 5 * SECOND);
-      updateTimeData();
-    }
-    return () => {
-      if (ival) clearInterval(ival);
-    };
-  }, [netInfo, poetInfo]);
-
-  //
-  // Calculate layers and epochs
-  //
   const currentEpoch = netInfo
     ? getEpochByLayer(netInfo.layersPerEpoch, layerByTime)
     : 0;
@@ -153,7 +132,76 @@ const useTimelineData = () => {
   const epochsDelta = epochsToDisplay - prevEpochsToDisplay;
   const layersDelta = layersToDisplay - prevLayersToDisplay;
 
-  // Update epochs
+  // Fulfull initial groups
+  useEffect(() => {
+    if (groupSetRef.current.length > 0) return;
+    groupSetRef.current.add([
+      { id: 'epochs', content: 'Epochs' },
+      {
+        id: 'layers',
+        content: 'Layers',
+      },
+      {
+        id: 'layers_optimized',
+        content: 'Layers',
+      },
+      { id: 'poet', content: 'PoET' },
+      {
+        id: 'events',
+        content: 'Events',
+        showNested: false,
+      },
+    ]);
+  }, []);
+
+  // Add the giantic bar for the "optimized layers" group
+  useEffect(() => {
+    if (!netInfo) return;
+
+    dataSetRef.current.update({
+      content: 'Too many layers to display. Please zoom in...',
+      id: 'layer_optimized',
+      group: 'layers_optimized',
+      start: netInfo.genesisTime,
+      end:
+        getLayerEndTime(netInfo.layerDuration, layersToDisplay) +
+        netInfo.genesisTime,
+      className: 'layer',
+      data: {
+        title: 'Too many layers to display. Please zoom in...',
+        type: TimelineItemType.Layer,
+        details: {
+          identities: {},
+        },
+      },
+    });
+  }, [layersToDisplay, netInfo]);
+
+  //
+  // Update current layer and poet round every 5 seconds
+  //
+  useEffect(() => {
+    let ival: ReturnType<typeof setInterval> | null = null;
+    if (netInfo) {
+      const updateTimeData = () => {
+        setLayerByTime(
+          getLayerByTime(netInfo.layerDuration, netInfo.genesisTime, Date.now())
+        );
+        if (poetInfo) {
+          setCurrentPoetRound(
+            getPoetRoundByTime(poetInfo.config, netInfo, Date.now())
+          );
+        }
+      };
+      ival = setInterval(updateTimeData, 5 * SECOND);
+      updateTimeData();
+    }
+    return () => {
+      if (ival) clearInterval(ival);
+    };
+  }, [netInfo, poetInfo]);
+
+  // Add/Update "empty" epochs
   useEffect(() => {
     if (!netInfo) return;
     const epochs = new Array(epochsDelta)
@@ -189,7 +237,7 @@ const useTimelineData = () => {
     updateData(epochs);
   }, [epochsDelta, netInfo, prevEpochsToDisplay]);
 
-  // Update layers
+  // Add/Update "empty" layers
   useEffect(() => {
     if (!netInfo) return;
     const layers = new Array(layersDelta)
@@ -218,7 +266,7 @@ const useTimelineData = () => {
     updateData(layers);
   }, [layersDelta, netInfo, prevLayersToDisplay]);
 
-  // Update PoET rounds and cycle gaps
+  // Add/Update PoET rounds and cycle gaps
   useEffect(() => {
     if (!netInfo || !poetInfo) return;
     const data = new Array(epochsDelta)
@@ -867,8 +915,8 @@ const useTimelineData = () => {
     smesherEventsById,
   ]);
 
-  const nestedEventGroups = useMemo(() => {
-    const ids = Object.keys(smesherStates || {});
+  const smesherIds = useMemo(() => {
+    const ids = Object.keys(smesherStates || {}).sort(sortHexString);
     return ids.length > 1 ? ids : [];
   }, [smesherStates]);
 
@@ -877,7 +925,7 @@ const useTimelineData = () => {
     genesisTime: netInfo?.genesisTime,
     epochDuration,
     items: dataSetRef.current,
-    nestedEventGroups,
+    nestedEventGroups: smesherIds,
     smesherMessages,
   };
 };
