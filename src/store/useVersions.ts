@@ -76,9 +76,6 @@ const checkVersion = async (inputVersion: string): Promise<VersionCheck> => {
   };
 };
 
-export const getHostedAppUrl = (hostedVersion: string): string =>
-  `https://smesher-alpha.spacemesh.network/${hostedVersion}/#/dash`;
-
 const useVersions = () => {
   const { getConnection } = useSmesherConnection();
   const [smesherVersion, setSmesherVersion] = useState<string | null>(null);
