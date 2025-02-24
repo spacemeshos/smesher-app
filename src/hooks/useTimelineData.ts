@@ -372,8 +372,9 @@ const useTimelineData = () => {
 
         // Update epochs and layers
 
-        if (item.state === SmesherEvents.EventName.ELIGIBLE) {
-          (() => {
+        switch (item.state) {
+          // Changing item statuses
+          case SmesherEvents.EventName.ELIGIBLE: {
             const d = details as SmesherEvents.EligibleEventDetails;
             const hasEligibilities = d.layers.length > 0;
             const epoch = getData(`epoch_${atEpoch}`);
@@ -385,7 +386,7 @@ const useTimelineData = () => {
               //
               // TODO: Refactor using more bullet-proof algorithms, like
               //       checking for having ATX for that epoch
-              return;
+              break;
             }
 
             // Mark eligible / rewarded layers
@@ -469,280 +470,260 @@ const useTimelineData = () => {
                 })
               );
             }
-          })();
-        }
-
-        if (item.state === SmesherEvents.EventName.PROPOSAL_PUBLISHED) {
-          const data = details as SmesherEvents.ProposalPublishedEventDetails;
-          const layer = getLayer(data.layer);
-          if (layer) {
-            setMessage(
-              id,
-              'success',
-              // eslint-disable-next-line max-len
-              `Proposal published for Layer ${data.layer} in epoch ${atEpoch}`
-            );
-            updated.push(
-              updateItem(layer, {
-                className: 'layer rewarded',
-                identities: {
-                  [id]: {
-                    state: IdentityState.SUCCESS,
-                    details: 'Proposal published',
-                  },
-                },
-              })
-            );
+            break;
           }
-
-          // Update epoch status
-          const epochItem = getData(`epoch_${atEpoch}`);
-          if (epochItem) {
-            const epochHasAllRewards = Object.values(
-              eligibilities[atEpoch] ?? {}
-            ).every((x) => x === 'rewarded');
-            const epochPassed = currentEpoch > atEpoch;
-            // eslint-disable-next-line no-nested-ternary
-            const [className, idStatus] = epochHasAllRewards
-              ? [
-                  'epoch rewarded',
-                  {
-                    // Rewarded
-                    state: IdentityState.SUCCESS,
-                    details: `Got all rewards for epoch ${atEpoch}`,
-                  },
-                ]
-              : epochPassed
-              ? [
-                  'epoch failed',
-                  {
-                    // Missed some rewards in epoch
-                    state: IdentityState.FAILURE,
-                    details: `Missed rewards for layers ${Object.entries(
-                      eligibilities[atEpoch] ?? {}
-                    )
-                      .filter(([, status]) => status !== 'rewarded')
-                      .map(([layerNum]) => layerNum)
-                      .join(', ')}`,
-                  },
-                ]
-              : [
-                  'epoch eligible',
-                  {
-                    // Waiting for rewards...
-                    state: IdentityState.ELIGIBLE,
-                    details: `Getting rewards...`,
-                  },
-                ];
-
-            if (className && idStatus) {
+          case SmesherEvents.EventName.PROPOSAL_PUBLISHED: {
+            const data = details as SmesherEvents.ProposalPublishedEventDetails;
+            const layer = getLayer(data.layer);
+            if (layer) {
+              setMessage(
+                id,
+                'success',
+                // eslint-disable-next-line max-len
+                `Proposal published for Layer ${data.layer} in epoch ${atEpoch}`
+              );
               updated.push(
-                updateItem(epochItem, {
-                  className,
+                updateItem(layer, {
+                  className: 'layer rewarded',
                   identities: {
-                    [id]: idStatus,
+                    [id]: {
+                      state: IdentityState.SUCCESS,
+                      details: 'Proposal published',
+                    },
                   },
                 })
               );
             }
+
+            // Update epoch status
+            const epochItem = getData(`epoch_${atEpoch}`);
+            if (epochItem) {
+              const epochHasAllRewards = Object.values(
+                eligibilities[atEpoch] ?? {}
+              ).every((x) => x === 'rewarded');
+              const epochPassed = currentEpoch > atEpoch;
+              // eslint-disable-next-line no-nested-ternary
+              const [className, idStatus] = epochHasAllRewards
+                ? [
+                    'epoch rewarded',
+                    {
+                      // Rewarded
+                      state: IdentityState.SUCCESS,
+                      details: `Got all rewards for epoch ${atEpoch}`,
+                    },
+                  ]
+                : epochPassed
+                ? [
+                    'epoch failed',
+                    {
+                      // Missed some rewards in epoch
+                      state: IdentityState.FAILURE,
+                      details: `Missed rewards for layers ${Object.entries(
+                        eligibilities[atEpoch] ?? {}
+                      )
+                        .filter(([, status]) => status !== 'rewarded')
+                        .map(([layerNum]) => layerNum)
+                        .join(', ')}`,
+                    },
+                  ]
+                : [
+                    'epoch eligible',
+                    {
+                      // Waiting for rewards...
+                      state: IdentityState.ELIGIBLE,
+                      details: `Getting rewards...`,
+                    },
+                  ];
+
+              if (className && idStatus) {
+                updated.push(
+                  updateItem(epochItem, {
+                    className,
+                    identities: {
+                      [id]: idStatus,
+                    },
+                  })
+                );
+              }
+            }
+            break;
           }
-        }
-
-        if (
-          item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED ||
-          item.state === SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED
-        ) {
-          setMessage(
-            id,
-            'failed',
-            // eslint-disable-next-line max-len
-            `${
-              item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED
-                ? 'Proposal build'
-                : 'Proposal publish'
-            } failed`
-          );
-
-          const epoch = getData(`epoch_${atEpoch}`);
-          if (epoch) {
-            updated.push(
-              updateItem(epoch, {
-                className: 'epoch failed',
-                identities: {
-                  [id]: {
-                    state: IdentityState.FAILURE,
-                    details: (
-                      details as
-                        | SmesherEvents.ProposalPublishFailedEventDetails
-                        | SmesherEvents.ProposalBuildFailedEventDetails
-                    ).message,
-                  },
-                },
-              })
+          case SmesherEvents.EventName.PROPOSAL_BUILD_FAILED:
+          case SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED: {
+            setMessage(
+              id,
+              'failed',
+              // eslint-disable-next-line max-len
+              `${
+                item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED
+                  ? 'Proposal build'
+                  : 'Proposal publish'
+              } failed`
             );
-          }
 
-          const layer = getLayer(atLayer);
-          if (layer) {
-            updated.push(
-              updateItem(layer, {
-                className: 'layer failed',
-                identities: {
-                  [id]: {
-                    state: IdentityState.FAILURE,
-                    details: `${
-                      item.state ===
-                      SmesherEvents.EventName.PROPOSAL_BUILD_FAILED
-                        ? 'Proposal build'
-                        : 'Proposal publish'
-                    } failed: ${
-                      (
-                        details as
-                          | SmesherEvents.ProposalPublishFailedEventDetails
-                          | SmesherEvents.ProposalBuildFailedEventDetails
-                      ).message
-                    }`,
-                  },
-                },
-              })
-            );
-          }
-        }
-
-        if (item.state === SmesherEvents.EventName.GENERATING_POST_PROOF) {
-          setMessage(id, 'success', 'Generating PoST proof...');
-        }
-
-        if (item.state === SmesherEvents.EventName.ATX_BROADCASTED) {
-          const affectedEpoch = atEpoch + 1;
-          const epoch = getData(`epoch_${affectedEpoch}`);
-          if (epoch) {
-            const isOutdated = currentEpoch > affectedEpoch;
-            if (isOutdated) {
-              setMessage(
-                id,
-                'failed',
-                // eslint-disable-next-line max-len
-                `Did not published any proposal in ${affectedEpoch}`
-              );
+            const epoch = getData(`epoch_${atEpoch}`);
+            if (epoch) {
               updated.push(
                 updateItem(epoch, {
                   className: 'epoch failed',
                   identities: {
                     [id]: {
                       state: IdentityState.FAILURE,
-                      details: 'Missed publishing proposals',
-                    },
-                  },
-                })
-              );
-            } else {
-              setMessage(
-                id,
-                'success',
-                // eslint-disable-next-line max-len
-                `ATX is broadcasted in epoch ${affectedEpoch}`
-              );
-              updated.push(
-                updateItem(epoch, {
-                  className: 'epoch eligible',
-                  identities: {
-                    [id]: {
-                      state: IdentityState.ELIGIBLE,
-                      details: 'ATX is broadcasted. Waiting for rewards...',
+                      details: (
+                        details as
+                          | SmesherEvents.ProposalPublishFailedEventDetails
+                          | SmesherEvents.ProposalBuildFailedEventDetails
+                      ).message,
                     },
                   },
                 })
               );
             }
-          }
-        }
 
-        if (item.state === SmesherEvents.EventName.POET_PROOF_RECEIVED) {
-          const round = getData(`poet_round_${atRound}`);
-          if (round) {
-            setMessage(
-              id,
-              'success',
-              // eslint-disable-next-line max-len
-              `PoET proof received in round ${atRound}`
-            );
-            updated.push(
-              updateItem(round, {
-                className: 'poet-round success',
-                identities: {
-                  [id]: {
-                    state: IdentityState.SUCCESS,
-                    details: 'PoET proof received',
-                  },
-                },
-              })
-            );
-          }
-          const affectedEpoch = atRound + 2;
-          const epoch = getData(`epoch_${affectedEpoch}`);
-          if (epoch) {
-            updated.push(
-              updateItem(
-                epoch,
-                currentEpoch > affectedEpoch
-                  ? {
-                      className: 'epoch failed',
-                      identities: {
-                        [id]: {
-                          state: IdentityState.FAILURE,
-                          details:
-                            // eslint-disable-next-line max-len
-                            'Did not publish Activation Transaction in time',
-                        },
-                      },
-                    }
-                  : {
-                      className: 'epoch pending',
-                      identities: {
-                        [id]: {
-                          state: IdentityState.PENDING,
-                          details:
-                            // eslint-disable-next-line max-len
-                            'PoET proof received, going to publish Activation Transaction',
-                        },
-                      },
-                    }
-              )
-            );
-          }
-        }
-        if (item.state === SmesherEvents.EventName.POET_REGISTERED) {
-          const affectedRound = atRound + 1;
-          const affectedEpoch = affectedRound + 2;
-          const round = getData(
-            `poet_round_${affectedRound}`
-          ) as TimelineItem<PoetRoundDetails>;
-          if (round) {
-            if (currentPoetRound > affectedRound) {
-              setMessage(
-                id,
-                'failed',
-                // eslint-disable-next-line max-len
-                `Did not received PoET proof for round ${affectedRound} in time. Will not have rewards in epoch ${affectedEpoch}`
-              );
+            const layer = getLayer(atLayer);
+            if (layer) {
               updated.push(
-                updateItem(round, {
-                  className: 'poet-round failed',
+                updateItem(layer, {
+                  className: 'layer failed',
                   identities: {
                     [id]: {
                       state: IdentityState.FAILURE,
-                      // eslint-disable-next-line max-len
-                      details: `Did not received PoET proof for round ${affectedRound} in time`,
+                      details: `${
+                        item.state ===
+                        SmesherEvents.EventName.PROPOSAL_BUILD_FAILED
+                          ? 'Proposal build'
+                          : 'Proposal publish'
+                      } failed: ${
+                        (
+                          details as
+                            | SmesherEvents.ProposalPublishFailedEventDetails
+                            | SmesherEvents.ProposalBuildFailedEventDetails
+                        ).message
+                      }`,
                     },
                   },
                 })
               );
-              const epoch = getData(`epoch_${affectedEpoch}`);
-              if (epoch) {
+            }
+            break;
+          }
+          case SmesherEvents.EventName.ATX_BROADCASTED: {
+            const affectedEpoch = atEpoch + 1;
+            const epoch = getData(`epoch_${affectedEpoch}`);
+            if (epoch) {
+              const isOutdated = currentEpoch > affectedEpoch;
+              if (isOutdated) {
+                setMessage(
+                  id,
+                  'failed',
+                  // eslint-disable-next-line max-len
+                  `Did not published any proposal in ${affectedEpoch}`
+                );
                 updated.push(
                   updateItem(epoch, {
                     className: 'epoch failed',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.FAILURE,
+                        details: 'Missed publishing proposals',
+                      },
+                    },
+                  })
+                );
+              } else {
+                setMessage(
+                  id,
+                  'success',
+                  // eslint-disable-next-line max-len
+                  `ATX is broadcasted in epoch ${affectedEpoch}`
+                );
+                updated.push(
+                  updateItem(epoch, {
+                    className: 'epoch eligible',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.ELIGIBLE,
+                        details: 'ATX is broadcasted. Waiting for rewards...',
+                      },
+                    },
+                  })
+                );
+              }
+            }
+            break;
+          }
+          case SmesherEvents.EventName.POET_PROOF_RECEIVED: {
+            const round = getData(`poet_round_${atRound}`);
+            if (round) {
+              setMessage(
+                id,
+                'success',
+                // eslint-disable-next-line max-len
+                `PoET proof received in round ${atRound}`
+              );
+              updated.push(
+                updateItem(round, {
+                  className: 'poet-round success',
+                  identities: {
+                    [id]: {
+                      state: IdentityState.SUCCESS,
+                      details: 'PoET proof received',
+                    },
+                  },
+                })
+              );
+            }
+            const affectedEpoch = atRound + 2;
+            const epoch = getData(`epoch_${affectedEpoch}`);
+            if (epoch) {
+              updated.push(
+                updateItem(
+                  epoch,
+                  currentEpoch > affectedEpoch
+                    ? {
+                        className: 'epoch failed',
+                        identities: {
+                          [id]: {
+                            state: IdentityState.FAILURE,
+                            details:
+                              // eslint-disable-next-line max-len
+                              'Did not publish Activation Transaction in time',
+                          },
+                        },
+                      }
+                    : {
+                        className: 'epoch pending',
+                        identities: {
+                          [id]: {
+                            state: IdentityState.PENDING,
+                            details:
+                              // eslint-disable-next-line max-len
+                              'PoET proof received, going to publish Activation Transaction',
+                          },
+                        },
+                      }
+                )
+              );
+            }
+            break;
+          }
+          case SmesherEvents.EventName.POET_REGISTERED: {
+            const affectedRound = atRound + 1;
+            const affectedEpoch = affectedRound + 2;
+            const round = getData(
+              `poet_round_${affectedRound}`
+            ) as TimelineItem<PoetRoundDetails>;
+            if (round) {
+              if (currentPoetRound > affectedRound) {
+                setMessage(
+                  id,
+                  'failed',
+                  // eslint-disable-next-line max-len
+                  `Did not received PoET proof for round ${affectedRound} in time. Will not have rewards in epoch ${affectedEpoch}`
+                );
+                updated.push(
+                  updateItem(round, {
+                    className: 'poet-round failed',
                     identities: {
                       [id]: {
                         state: IdentityState.FAILURE,
@@ -752,85 +733,83 @@ const useTimelineData = () => {
                     },
                   })
                 );
-              }
-            } else {
-              setMessage(
-                id,
-                'success',
-                // eslint-disable-next-line max-len
-                `Registered in PoET round ${affectedRound}`
-              );
-              updated.push(
-                updateItem(round, {
-                  className: 'poet-round eligible',
-                  identities: {
-                    [id]: {
-                      state: IdentityState.ELIGIBLE,
-                      details: 'Registered in PoET',
-                    },
-                  },
-                })
-              );
-              const epoch = getData(`epoch_${affectedEpoch}`);
-              if (epoch) {
+                const epoch = getData(`epoch_${affectedEpoch}`);
+                if (epoch) {
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch failed',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.FAILURE,
+                          // eslint-disable-next-line max-len
+                          details: `Did not received PoET proof for round ${affectedRound} in time`,
+                        },
+                      },
+                    })
+                  );
+                }
+              } else {
+                setMessage(
+                  id,
+                  'success',
+                  // eslint-disable-next-line max-len
+                  `Registered in PoET round ${affectedRound}`
+                );
                 updated.push(
-                  updateItem(epoch, {
-                    className: 'epoch eligible',
+                  updateItem(round, {
+                    className: 'poet-round eligible',
                     identities: {
                       [id]: {
                         state: IdentityState.ELIGIBLE,
-                        // eslint-disable-next-line max-len
-                        details:
-                          'Registered in PoET. Waiting for PoET proof...',
+                        details: 'Registered in PoET',
                       },
                     },
                   })
                 );
+                const epoch = getData(`epoch_${affectedEpoch}`);
+                if (epoch) {
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch eligible',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.ELIGIBLE,
+                          // eslint-disable-next-line max-len
+                          details:
+                            'Registered in PoET. Waiting for PoET proof...',
+                        },
+                      },
+                    })
+                  );
+                }
               }
             }
+            break;
           }
-        }
-
-        if (
-          item.state ===
-          SmesherEvents.EventName.WAITING_FOR_POET_REGISTRATION_WINDOW
-        ) {
-          const affectedRound = atRound + 1;
-          const affectedEpoch = affectedRound + 2;
-          // Mark next PoET round...
-          const nextRound = getData(
-            `poet_round_${affectedRound}`
-          ) as TimelineItem<PoetRoundDetails>;
-          if (nextRound) {
-            // TODO: Mark as failed or success
-            const roundNow = getPoetRoundByTime(
-              poetInfo.config,
-              netInfo,
-              Date.now()
-            );
-            // Mark as failed due to missing it
-            if (affectedRound < roundNow) {
-              setMessage(
-                id,
-                'failed',
-                `Missed PoET registration window in round ${affectedRound}`
+          case SmesherEvents.EventName.WAITING_FOR_POET_REGISTRATION_WINDOW: {
+            const affectedRound = atRound + 1;
+            const affectedEpoch = affectedRound + 2;
+            // Mark next PoET round...
+            const nextRound = getData(
+              `poet_round_${affectedRound}`
+            ) as TimelineItem<PoetRoundDetails>;
+            if (nextRound) {
+              // TODO: Mark as failed or success
+              const roundNow = getPoetRoundByTime(
+                poetInfo.config,
+                netInfo,
+                Date.now()
               );
-              updated.push(
-                updateItem(nextRound, {
-                  className: 'poet-round failed',
-                  identities: {
-                    [id]: {
-                      state: IdentityState.FAILURE,
-                      details: 'Missed PoET registration window',
-                    },
-                  },
-                })
-              );
-              const epoch = getData(`epoch_${affectedEpoch}`);
-              if (epoch) {
+              // Mark as failed due to missing it
+              if (affectedRound < roundNow) {
+                setMessage(
+                  id,
+                  'failed',
+                  `Missed PoET registration window in round ${affectedRound}`
+                );
                 updated.push(
-                  updateItem(epoch, {
-                    className: 'epoch failed',
+                  updateItem(nextRound, {
+                    className: 'poet-round failed',
                     identities: {
                       [id]: {
                         state: IdentityState.FAILURE,
@@ -839,27 +818,68 @@ const useTimelineData = () => {
                     },
                   })
                 );
-              }
-            } else {
-              // Mark as pending
-              setMessage(
-                id,
-                'pending',
-                // eslint-disable-next-line max-len
-                `Waiting for PoET registration window in round ${affectedRound}`
-              );
-              updated.push(
-                updateItem(nextRound, {
-                  className: 'poet-round pending',
-                  identities: {
-                    [id]: {
-                      state: IdentityState.PENDING,
-                      details: 'Waiting for PoET registration window',
+                const epoch = getData(`epoch_${affectedEpoch}`);
+                if (epoch) {
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch failed',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.FAILURE,
+                          details: 'Missed PoET registration window',
+                        },
+                      },
+                    })
+                  );
+                }
+              } else {
+                // Mark as pending
+                setMessage(
+                  id,
+                  'pending',
+                  // eslint-disable-next-line max-len
+                  `Waiting for PoET registration window in round ${affectedRound}`
+                );
+                updated.push(
+                  updateItem(nextRound, {
+                    className: 'poet-round pending',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.PENDING,
+                        details: 'Waiting for PoET registration window',
+                      },
                     },
-                  },
-                })
-              );
+                  })
+                );
+              }
             }
+            break;
+          }
+          // Update identity status message only
+          case SmesherEvents.EventName.GENERATING_POST_PROOF: {
+            setMessage(id, 'success', 'Generating PoST proof...');
+            break;
+          }
+          case SmesherEvents.EventName.WAIT_FOR_POET_ROUND_END: {
+            if (!smesherMessages[id]) {
+              // Set "Waiting for PoET round end..." message only
+              // if there is no other messages yet
+              setMessage(id, 'pending', 'Waiting for PoET round end...');
+            }
+            break;
+          }
+          case SmesherEvents.EventName.WAIT_FOR_ATX_SYNCED: {
+            setMessage(id, 'pending', 'Waiting for ATX sync...');
+            break;
+          }
+          case SmesherEvents.EventName.RETRYING: {
+            const d = details as SmesherEvents.RetryingEventDetails;
+            setMessage(id, 'failed', `Retrying due to error: ${d.message}`);
+            break;
+          }
+          default: {
+            // Do nothing in other cases
+            break;
           }
         }
 
