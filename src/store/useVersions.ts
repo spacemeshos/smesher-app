@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 import semver from 'semver';
 
@@ -71,40 +71,57 @@ const useVersions = () => {
   const { getConnection } = useSmesherConnection();
   const [smesherVersion, setSmesherVersion] = useState<string | null>(null);
   const [versionCheck, setVersionCheck] = useState<VersionCheck | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(false);
   const rpc = getConnection();
 
-  useEffect(() => {
-    if (rpc) {
-      fetchSmesherVersion(rpc).then((version) => {
-        setSmesherVersion(version);
-      });
+  const refresh = useCallback(async () => {
+    if (!rpc) return;
+
+    setLoading(true);
+    try {
+      const version = await fetchSmesherVersion(rpc);
+      setSmesherVersion(version);
+
+      const verCheck = await checkVersion(version);
+      setError(null);
+      setVersionCheck(verCheck);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err);
+      }
+      // eslint-disable-next-line no-console
+      console.error(err);
     }
-  }, [rpc, setSmesherVersion]);
+    setLoading(false);
+  }, [rpc]);
 
   useEffect(() => {
-    if (!smesherVersion) return;
-
-    checkVersion(smesherVersion)
-      .then((version) => {
-        setVersionCheck(version);
-      })
-      .catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error(err);
-      });
-  }, [smesherVersion]);
+    // Fetch all required data on start up
+    refresh();
+  }, [refresh]);
 
   return useMemo(
     () => ({
+      loading,
+      refresh,
       smesherVersion,
       versionCheck,
       currentAppVersion,
+      error,
     }),
-    [smesherVersion, versionCheck]
+    [error, refresh, smesherVersion, versionCheck, loading]
   );
 };
 
 export default singletonHook(
-  { smesherVersion: null, versionCheck: null, currentAppVersion: '' },
+  {
+    refresh: () => Promise.resolve(),
+    loading: true,
+    error: null,
+    smesherVersion: null,
+    versionCheck: null,
+    currentAppVersion: '',
+  },
   useVersions
 );
