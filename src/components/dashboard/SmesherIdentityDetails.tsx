@@ -28,6 +28,8 @@ function SmesherIdentityDetails({
     [proposals]
   );
 
+  const reversedRewards = useMemo(() => rewards.slice().reverse(), [rewards]);
+
   return (
     <Flex w="100%" justifyContent="space-between" mb={2}>
       <Box w="55%">
@@ -98,9 +100,8 @@ function SmesherIdentityDetails({
       </Box>
       <Box w="40%">
         <Heading fontSize="sm">Rewards</Heading>
-        {rewards.map((reward) => (
+        {reversedRewards.map((reward) => (
           <Box
-            // eslint-disable-next-line max-len
             key={`Reward${id}_${reward.layerPaid}_${reward.smesher}`}
             my={2}
             p={3}
@@ -109,8 +110,14 @@ function SmesherIdentityDetails({
             borderColor="brand.darkGray"
             borderRadius="lg"
           >
-            <Text fontSize="sm" color="brand.green">
-              +{formatSmidge(reward.rewardForLayer + reward.rewardForFees)}
+            <Text>
+              <Text as="span" fontSize="sm" color="brand.green">
+                +{formatSmidge(reward.rewardForLayer + reward.rewardForFees)}
+              </Text>
+              <Text as="span" fontSize="sm">
+                {' '}
+                in layer {reward.layerPaid}
+              </Text>
             </Text>
             <Text fontSize="xs" color="gray.500" mt={1} mb={0.5}>
               To: {reward.coinbase}
