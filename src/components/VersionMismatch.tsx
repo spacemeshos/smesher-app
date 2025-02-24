@@ -70,7 +70,7 @@ function VersionMismatch(): JSX.Element | null {
         onClick={refresh}
         lineHeight={0}
       >
-        [v{versionCheck?.actual[0]}]
+        [{versionCheck?.actual[0]}]
       </Button>
     );
   }
@@ -115,7 +115,7 @@ function VersionMismatch(): JSX.Element | null {
           <ModalHeader>
             {versionCheck.hasUpdate
               ? `Smesher App v${versionCheck.expected[1]} is available`
-              : `Smesher Service v${smesherVersion} is not supported`}
+              : `Smesher Service ${smesherVersion} is not supported`}
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody>
