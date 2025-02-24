@@ -111,7 +111,13 @@ function SmesherIdentityDetails({
             borderRadius="lg"
           >
             <Text>
-              <Text as="span" fontSize="sm" color="brand.green">
+              <Text
+                as="span"
+                fontSize="sm"
+                color="brand.green"
+                // eslint-disable-next-line max-len
+                title={`Reward per layer: ${reward.rewardForLayer} Smidge\nReward for Tx fees: ${reward.rewardForFees} Smidge`}
+              >
                 +{formatSmidge(reward.rewardForLayer + reward.rewardForFees)}
               </Text>
               <Text as="span" fontSize="sm">
