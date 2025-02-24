@@ -11,6 +11,7 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  Spinner,
   Text,
   useDisclosure,
 } from '@chakra-ui/react';
@@ -23,7 +24,8 @@ import {
 import useVersions from '../store/useVersions';
 
 function VersionMismatch(): JSX.Element | null {
-  const { smesherVersion, versionCheck } = useVersions();
+  const { loading, error, refresh, smesherVersion, versionCheck } =
+    useVersions();
   const disclosure = useDisclosure();
 
   const { onOpen } = disclosure;
@@ -33,11 +35,48 @@ function VersionMismatch(): JSX.Element | null {
     }
   }, [onOpen, versionCheck?.supported]);
 
-  if (!versionCheck || (versionCheck.supported && !versionCheck.hasUpdate))
-    return null;
+  if (loading) {
+    return (
+      <Spinner
+        title="Checking version..."
+        color="brand.yellow"
+        size="xs"
+        ml={2}
+      />
+    );
+  }
 
-  const url = `https://smesher-alpha.spacemesh.network/v${
-    versionCheck.actual[1] ? `${versionCheck.actual[1]}/` : ''
+  if (error) {
+    return (
+      <Button
+        variant="link"
+        color="brand.red"
+        ml={2}
+        onClick={refresh}
+        lineHeight={0}
+      >
+        [Cannot check version. Retry?]
+      </Button>
+    );
+  }
+
+  if (!versionCheck || (versionCheck.supported && !versionCheck.hasUpdate)) {
+    // All good: Render "Refresh button"
+    return (
+      <Button
+        variant="link"
+        color="brand.green"
+        ml={2}
+        onClick={refresh}
+        lineHeight={0}
+      >
+        [v{versionCheck?.actual[0]}]
+      </Button>
+    );
+  }
+
+  const url = `https://smesher-alpha.spacemesh.network/${
+    versionCheck.actual[1] ? `version/${versionCheck.actual[1]}/` : ''
   }`;
 
   return (
