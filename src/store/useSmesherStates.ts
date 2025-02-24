@@ -20,7 +20,7 @@ import useNetworkInfo from './useNetworkInfo';
 import useSmesherConnection from './useSmesherConnection';
 
 // How many epochs to fetch from history
-const EPOCHS_IN_HISTORY = 20;
+const EPOCHS_IN_HISTORY = 5;
 
 const useSmesherStateStore = createDynamicStore<IdentityStateInfo[]>();
 
