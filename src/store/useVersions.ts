@@ -24,22 +24,34 @@ export interface VersionCheck {
   expected: VersionInfo;
 }
 
-const checkVersion = async (version: string): Promise<VersionCheck> => {
-  const versions = await fetchVersionsMap(APP_VERSIONS_MAP_URL);
+const getPrefix = (version: string): string =>
+  /([a-zA-Z-+_/]+)/.exec(version)?.[0] ?? '';
 
-  const idxBySmesherVersion = versions.findIndex((x, idx) => {
+const removePrefix = (prefix: string, version: string): string =>
+  version.replace(prefix, '');
+
+const checkVersion = async (inputVersion: string): Promise<VersionCheck> => {
+  const prefix = getPrefix(inputVersion);
+  const version = removePrefix(prefix, inputVersion);
+
+  const versions = await fetchVersionsMap(APP_VERSIONS_MAP_URL);
+  const versionsByPrefix = versions
+    .filter(([v]) => getPrefix(v) === prefix)
+    .map(([s, f]) => [removePrefix(prefix, s), f]);
+
+  const idxBySmesherVersion = versionsByPrefix.findIndex((x, idx) => {
     const isGte = semver.gte(version, x[0] ?? '');
-    const next = versions[idx + 1];
+    const next = versionsByPrefix[idx + 1];
     const isUpToNext = next ? semver.lt(version, next[0] ?? '') : true;
     return isGte && isUpToNext;
   });
 
-  const actual: VersionInfo = [version, currentAppVersion];
+  const actual: VersionInfo = [inputVersion, currentAppVersion];
   const expected = versions[idxBySmesherVersion];
   if (!expected) {
     throw new Error(
       // eslint-disable-next-line max-len
-      `Cannot find the corresponding version for the current Smesher version: ${version}`
+      `Cannot find the corresponding version for the current Smesher version: ${inputVersion}`
     );
   }
 
