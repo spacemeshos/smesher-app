@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DataSet } from 'vis-data';
 import { TimelineGroup } from 'vis-timeline';
 
@@ -15,7 +15,6 @@ import {
   EpochDetails,
   IdentityState,
   IndentityStatus,
-  LayerDetails,
   PoetRoundDetails,
   TimelineItem,
   TimelineItemType,
@@ -104,6 +103,35 @@ const useTimelineData = () => {
   const getData = (id: string) => dataSetRef.current.get(id);
   const updateData = (data: TimelineItem[]) => dataSetRef.current.update(data);
 
+  const getLayer = useCallback(
+    (index: number) => {
+      const existing = getData(`layer_${index}`);
+      if (existing) return existing;
+      if (!netInfo) {
+        throw new Error('Cannot get layer object without network info');
+      }
+
+      return {
+        content: `${index}`,
+        id: `layer_${index}`,
+        group: 'layers',
+        start:
+          getLayerStartTime(netInfo.layerDuration, index) + netInfo.genesisTime,
+        end:
+          getLayerEndTime(netInfo.layerDuration, index) + netInfo.genesisTime,
+        className: 'layer',
+        data: {
+          title: `Layer ${index}`,
+          type: TimelineItemType.Layer,
+          details: {
+            identities: {},
+          },
+        },
+      };
+    },
+    [netInfo]
+  );
+
   //
   // Calculate layers and epochs
   //
@@ -128,29 +156,37 @@ const useTimelineData = () => {
   const layersToDisplay = epochsToDisplay * (netInfo?.layersPerEpoch ?? 1);
 
   const prevEpochsToDisplay = usePrevious(epochsToDisplay);
-  const prevLayersToDisplay = usePrevious(layersToDisplay);
 
   const epochsDelta = epochsToDisplay - prevEpochsToDisplay;
-  const layersDelta = layersToDisplay - prevLayersToDisplay;
 
   // Fulfull initial groups
   useEffect(() => {
     if (groupSetRef.current.length > 0) return;
     groupSetRef.current.add([
-      { id: 'epochs', content: 'Epochs' },
+      {
+        id: 'epochs',
+        content: 'Epochs',
+        className: 'epochs',
+      },
       {
         id: 'layers',
-        content: 'Layers',
-        className: 'visible',
+        content: 'Eligible Layers',
+        className: 'layers',
       },
       {
         id: 'layers_optimized',
-        content: 'Layers',
+        content: 'Eligible Layers',
+        className: 'layers optimized',
       },
-      { id: 'poet', content: 'PoET' },
+      {
+        id: 'poet',
+        content: 'PoET',
+        className: 'poet',
+      },
       {
         id: 'events',
         content: 'Events',
+        className: 'events',
         showNested: false,
       },
     ]);
@@ -238,35 +274,6 @@ const useTimelineData = () => {
       });
     updateData(epochs);
   }, [epochsDelta, netInfo, prevEpochsToDisplay]);
-
-  // Add/Update "empty" layers
-  useEffect(() => {
-    if (!netInfo) return;
-    const layers = new Array(layersDelta)
-      .fill(null)
-      .map((_, idx): TimelineItem<LayerDetails> => {
-        const index = idx + prevLayersToDisplay;
-        return {
-          content: `${index}`,
-          id: `layer_${index}`,
-          group: 'layers',
-          start:
-            getLayerStartTime(netInfo.layerDuration, index) +
-            netInfo.genesisTime,
-          end:
-            getLayerEndTime(netInfo.layerDuration, index) + netInfo.genesisTime,
-          className: 'layer',
-          data: {
-            title: `Layer ${index}`,
-            type: TimelineItemType.Layer,
-            details: {
-              identities: {},
-            },
-          },
-        };
-      });
-    updateData(layers);
-  }, [layersDelta, netInfo, prevLayersToDisplay]);
 
   // Add/Update PoET rounds and cycle gaps
   useEffect(() => {
@@ -383,7 +390,7 @@ const useTimelineData = () => {
 
             // Mark eligible / rewarded layers
             d.layers.forEach((layer) => {
-              const eligibleLayer = getData(`layer_${layer.layer}`);
+              const eligibleLayer = getLayer(layer.layer);
               if (eligibleLayer) {
                 const rewarded = smesherRewards.find(
                   (r) => r.layerPaid === layer.layer
@@ -467,7 +474,7 @@ const useTimelineData = () => {
 
         if (item.state === SmesherEvents.EventName.PROPOSAL_PUBLISHED) {
           const data = details as SmesherEvents.ProposalPublishedEventDetails;
-          const layer = getData(`layer_${data.layer}`);
+          const layer = getLayer(data.layer);
           if (layer) {
             setMessage(
               id,
@@ -575,7 +582,7 @@ const useTimelineData = () => {
             );
           }
 
-          const layer = getData(`layer_${atLayer}`);
+          const layer = getLayer(atLayer);
           if (layer) {
             updated.push(
               updateItem(layer, {
@@ -882,7 +889,7 @@ const useTimelineData = () => {
 
       if (rewards && rewards[id]) {
         rewards[id]?.forEach((reward) => {
-          const layer = getData(`layer_${reward.layerPaid}`);
+          const layer = getLayer(reward.layerPaid);
           if (layer) {
             updated.push(
               updateItem(layer, {
@@ -908,6 +915,7 @@ const useTimelineData = () => {
   }, [
     currentEpoch,
     currentPoetRound,
+    getLayer,
     layerByTime,
     netInfo,
     poetInfo,
