@@ -125,6 +125,7 @@ function DashboardScreen(): JSX.Element {
   const [forceClosed, setForceClosed] = useState(false);
 
   const netStatus = getStatusByStore(NetInfo);
+  /* eslint-disable no-nested-ternary */
   const apiStatus =
     netStatus === 'ok'
       ? versionCheck
@@ -133,6 +134,7 @@ function DashboardScreen(): JSX.Element {
           : 'pending'
         : 'ok'
       : 'pending';
+  /* eslint-enable no-nested-ternary */
 
   return (
     <>
