@@ -2,7 +2,6 @@ import { MutableRefObject, useEffect, useRef, useState } from 'react';
 import { Timeline } from 'vis-timeline';
 
 import { Box, Text, useOutsideClick, usePrevious } from '@chakra-ui/react';
-import { useDebounce } from '@uidotdev/usehooks';
 
 import useTimelineData from '../../hooks/useTimelineData';
 import useNetworkInfo from '../../store/useNetworkInfo';
