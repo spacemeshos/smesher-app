@@ -89,15 +89,22 @@ const useTimelineData = () => {
   const setMessage = (
     id: HexString,
     type: SmesherMessage['type'],
-    message: string
+    message: string,
+    onlyIfEmpty = false
   ) => {
-    setSmesherMessages((prev) => ({
-      ...prev,
-      [id]: {
-        type,
-        message,
-      },
-    }));
+    setSmesherMessages((prev) => {
+      const existing = prev[id];
+      return {
+        ...prev,
+        [id]:
+          onlyIfEmpty && existing
+            ? existing
+            : {
+                type,
+                message,
+              },
+      };
+    });
   };
 
   const getData = (id: string) => dataSetRef.current.get(id);
@@ -861,11 +868,7 @@ const useTimelineData = () => {
             break;
           }
           case SmesherEvents.EventName.WAIT_FOR_POET_ROUND_END: {
-            if (!smesherMessages[id]) {
-              // Set "Waiting for PoET round end..." message only
-              // if there is no other messages yet
-              setMessage(id, 'pending', 'Waiting for PoET round end...');
-            }
+            setMessage(id, 'pending', 'Waiting for PoET round end...', true);
             break;
           }
           case SmesherEvents.EventName.WAIT_FOR_ATX_SYNCED: {
