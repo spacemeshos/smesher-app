@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { Timeline, TimelineGroup } from 'vis-timeline';
+import { MutableRefObject, useEffect, useRef, useState } from 'react';
+import { Timeline } from 'vis-timeline';
 
 import { Box, Text, useOutsideClick, usePrevious } from '@chakra-ui/react';
 
 import useTimelineData from '../../hooks/useTimelineData';
+import useNetworkInfo from '../../store/useNetworkInfo';
 import { colors } from '../../theme';
 import { HexString } from '../../types/common';
 import {
@@ -11,7 +12,6 @@ import {
   IndentityStatus,
   TimelineItem,
 } from '../../types/timeline';
-import { getAbbreviatedHexString } from '../../utils/abbr';
 import { SECOND } from '../../utils/constants';
 import { sortHexString } from '../../utils/hexString';
 
@@ -21,38 +21,6 @@ import 'vis-timeline/dist/vis-timeline-graph2d.min.css';
 import './styles.css';
 
 const DEFAULT_ZOOM_MAX = 60 * SECOND * 60 * 24 * 365; // Year
-
-type GetGroupsParams = {
-  smesherIds?: string[];
-  isLayersHidden?: boolean;
-};
-const getGroups = ({
-  smesherIds = [],
-  isLayersHidden = false,
-}: GetGroupsParams): TimelineGroup[] => [
-  { id: 'epochs', content: 'Epochs' },
-  {
-    id: 'layers',
-    content: 'Layers',
-    className: isLayersHidden ? 'hidden' : '',
-  },
-  { id: 'poet', content: 'PoET' },
-  {
-    id: 'events',
-    content: 'Events',
-    showNested: false,
-    nestedGroups:
-      smesherIds.length > 1
-        ? smesherIds.sort(sortHexString).map((id) => `smesher_${id}`)
-        : undefined,
-  },
-  ...smesherIds.map(
-    (id): TimelineGroup => ({
-      id: `smesher_${id}`,
-      content: getAbbreviatedHexString(id),
-    })
-  ),
-];
 
 type CursorState = {
   x: number;
@@ -152,12 +120,12 @@ const calculateTooltipPosition = (
 
 const getSmesherMarkers = (
   ids: Record<HexString, IndentityStatus>,
-  order: HexString[]
+  order: MutableRefObject<HexString[]>
 ) => {
   const markers = Object.entries(ids)
     .sort(([a], [b]) => sortHexString(a, b))
     .map(([id, data]) => {
-      const num = order.indexOf(id);
+      const num = order.current.indexOf(id);
       const numStr = num === -1 ? '?' : String(num + 1);
 
       const { state, details } = data;
@@ -203,10 +171,8 @@ export default function SmeshingTimeline() {
   const cursorTimeRef = useRef<HTMLDivElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const data = useTimelineData();
-  const prevGroups = usePrevious(data.nestedEventGroups);
-  const [zoomedIn, setZoomedIn] = useState(false);
-  const [isLayersHidden, setLayersHidden] = useState(false);
-  const prevLayersHidden = usePrevious(isLayersHidden);
+  const { data: netInfo } = useNetworkInfo();
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM_MAX);
   const [cursor, setCursor] = useState<CursorState>({
     x: -1000,
     content: null,
@@ -232,10 +198,21 @@ export default function SmeshingTimeline() {
   });
 
   useEffect(() => {
+    // Update smesher ids Ref
+    if (
+      data.smesherIds &&
+      (smesherIds.current.length !== data.smesherIds.length ||
+        smesherIds.current.some((id, i) => id !== data.smesherIds[i]))
+    ) {
+      smesherIds.current = data.smesherIds;
+    }
+  }, [data.smesherIds]);
+
+  useEffect(() => {
     if (!ref.current) return;
 
     if (!chartRef.current) {
-      chartRef.current = new Timeline(ref.current, data.items, getGroups({}), {
+      chartRef.current = new Timeline(ref.current, data.items, data.groups, {
         autoResize: true,
         showCurrentTime: true,
         preferZoom: true,
@@ -266,19 +243,18 @@ export default function SmeshingTimeline() {
             const identities = document.createElement('div');
             identities.className = 'identities';
 
-            getSmesherMarkers(
-              item.data.details.identities,
-              smesherIds.current ?? []
-            ).forEach((el) => {
-              if (!el) return;
-              if (typeof el === 'string') {
-                const span = document.createElement('span');
-                span.innerHTML = el;
-                identities.appendChild(span);
-                return;
+            getSmesherMarkers(item.data.details.identities, smesherIds).forEach(
+              (el) => {
+                if (!el) return;
+                if (typeof el === 'string') {
+                  const span = document.createElement('span');
+                  span.innerHTML = el;
+                  identities.appendChild(span);
+                  return;
+                }
+                identities.appendChild(el);
               }
-              identities.appendChild(el);
-            });
+            );
 
             tpl.appendChild(title);
             tpl.appendChild(identities);
@@ -290,7 +266,9 @@ export default function SmeshingTimeline() {
       });
 
       chartRef.current.addCustomTime(0, 'cursor');
-      chartRef.current.on('rangechange', ({ event, byUser }) => {
+      chartRef.current.on('rangechange', (e) => {
+        const deltaTime = e.end - e.start;
+        setZoom(deltaTime);
         // update cursor time  position
         setCursor((prevState) => ({
           x: calculateCursorPosition(rootRef.current, cursorTimeRef.current),
@@ -301,16 +279,6 @@ export default function SmeshingTimeline() {
           ...calculateTooltipPosition(rootRef.current, tooltipRef.current),
           content: prevState.content,
         }));
-
-        if (byUser && event.type === 'wheel') {
-          // React only on zoom in / zoom out here
-          const layerElements = [...document.getElementsByClassName('layer')];
-          const someLayer = layerElements[Math.floor(layerElements.length / 2)];
-          if (!someLayer) return;
-          const layerWidth = someLayer.clientWidth;
-
-          setLayersHidden(layerWidth < 10);
-        }
       });
       chartRef.current.on('mouseMove', (event) => {
         if (event.time && chartRef.current && cursorTimeRef.current) {
@@ -381,43 +349,57 @@ export default function SmeshingTimeline() {
           }));
         }, 0);
       });
-      return;
-    }
-
-    if (!zoomedIn && data.epochDuration) {
-      chartRef.current.setOptions({
-        zoomMax: data.epochDuration * 5,
-      });
-      setTimeout(() => {
-        chartRef.current?.setOptions({
-          zoomMax: DEFAULT_ZOOM_MAX,
-        });
-      }, 1000); // Wait to ensure it were re-rendered
-      setZoomedIn(true);
     }
   }, [
     data.epochDuration,
     data.genesisTime,
+    data.groups,
     data.items,
-    data.nestedEventGroups,
-    smesherIds,
-    zoomedIn,
+    data.smesherIds,
   ]);
 
+  // Calculate flags depending on zoom level
+  const [isLayerBorderHidden, setLayerBorderHidden] = useState(false);
+  const [isLayersOptimized, setLayersOptimized] = useState(false);
+  const prevLayerBorderHidden = usePrevious(isLayerBorderHidden);
+  const prevLayersOptimized = usePrevious(isLayersOptimized);
   useEffect(() => {
+    if (!netInfo) return;
+    setLayerBorderHidden(zoom / 1000 > netInfo.layerDuration * 100);
+    setLayersOptimized(zoom / 1000 > netInfo.layerDuration * 300);
+  }, [netInfo, zoom]);
+
+  // Update groups and their flags
+  useEffect(() => {
+    if (!chartRef.current || !netInfo) return;
     if (
-      prevGroups !== data.nestedEventGroups ||
-      prevLayersHidden !== isLayersHidden
-    ) {
-      const ids = data.nestedEventGroups.sort(sortHexString);
-      const newGroups = getGroups({
-        smesherIds: ids,
-        isLayersHidden,
-      });
-      chartRef.current?.setGroups(newGroups);
-      smesherIds.current = ids;
-    }
-  }, [data.nestedEventGroups, isLayersHidden, prevGroups, prevLayersHidden]);
+      isLayerBorderHidden === prevLayerBorderHidden &&
+      isLayersOptimized === prevLayersOptimized
+    )
+      return;
+
+    const layers = data.groups.get('layers');
+    const layersOptimized = data.groups.get('layers_optimized');
+    if (!layers || !layersOptimized) return;
+    data.groups.update([
+      {
+        ...layers,
+        className: isLayerBorderHidden ? 'layers hidden' : 'layers',
+        visible: !isLayersOptimized,
+      },
+      {
+        ...layersOptimized,
+        visible: isLayersOptimized,
+      },
+    ]);
+  }, [
+    data.groups,
+    isLayerBorderHidden,
+    isLayersOptimized,
+    netInfo,
+    prevLayerBorderHidden,
+    prevLayersOptimized,
+  ]);
 
   return (
     <Box w="100%" pos="relative" ref={rootRef}>

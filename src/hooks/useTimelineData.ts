@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DataSet } from 'vis-data';
+import { TimelineGroup } from 'vis-timeline';
 
 import { usePrevious } from '@chakra-ui/react';
 
 import * as SmesherEvents from '../api/schemas/smesherEvents';
+import useEligibilities from '../store/useEligibilities';
 import useNetworkInfo from '../store/useNetworkInfo';
 import usePoETInfo from '../store/usePoETInfo';
 import useRewards from '../store/useRewards';
@@ -14,12 +16,13 @@ import {
   EpochDetails,
   IdentityState,
   IndentityStatus,
-  LayerDetails,
   PoetRoundDetails,
   TimelineItem,
   TimelineItemType,
 } from '../types/timeline';
+import { getAbbreviatedHexString } from '../utils/abbr';
 import { SECOND } from '../utils/constants';
+import { sortHexString } from '../utils/hexString';
 import { formatSmidge } from '../utils/smh';
 import {
   getCycleGapEnd,
@@ -78,33 +81,149 @@ const useTimelineData = () => {
   const { data: poetInfo } = usePoETInfo();
   const smesherStatesStore = useSmesherStates();
   const { data: rewards } = useRewards();
+  const { data: eligibilities } = useEligibilities();
   const dataSetRef = useRef(new DataSet<TimelineItem>());
+  const groupSetRef = useRef(new DataSet<TimelineGroup>());
   const [smesherMessages, setSmesherMessages] = useState<SmesherMessages>({});
 
   const smesherStates = smesherStatesStore.data?.states;
 
+  const [layerByTime, setLayerByTime] = useState(0);
+  const [currentPoetRound, setCurrentPoetRound] = useState(0);
+  const currentEpoch = netInfo
+    ? getEpochByLayer(netInfo.layersPerEpoch, layerByTime)
+    : 0;
+
+  const epochDuration = netInfo
+    ? getEpochDuration(netInfo.layerDuration, netInfo.layersPerEpoch)
+    : 0;
+
   const setMessage = (
     id: HexString,
     type: SmesherMessage['type'],
-    message: string
+    message: string,
+    onlyIfEmpty = false
   ) => {
-    setSmesherMessages((prev) => ({
-      ...prev,
-      [id]: {
-        type,
-        message,
-      },
-    }));
+    setSmesherMessages((prev) => {
+      const existing = prev[id];
+      return {
+        ...prev,
+        [id]:
+          onlyIfEmpty && existing
+            ? existing
+            : {
+                type,
+                message,
+              },
+      };
+    });
   };
 
   const getData = (id: string) => dataSetRef.current.get(id);
   const updateData = (data: TimelineItem[]) => dataSetRef.current.update(data);
 
+  const getLayer = useCallback(
+    (index: number) => {
+      const existing = getData(`layer_${index}`);
+      if (existing) return existing;
+      if (!netInfo) {
+        throw new Error('Cannot get layer object without network info');
+      }
+
+      return {
+        content: `${index}`,
+        id: `layer_${index}`,
+        group: 'layers',
+        start:
+          getLayerStartTime(netInfo.layerDuration, index) + netInfo.genesisTime,
+        end:
+          getLayerEndTime(netInfo.layerDuration, index) + netInfo.genesisTime,
+        className: 'layer',
+        data: {
+          title: `Layer ${index}`,
+          type: TimelineItemType.Layer,
+          details: {
+            identities: {},
+          },
+        },
+      };
+    },
+    [netInfo]
+  );
+
   //
-  // Update current time twice per layer
+  // Computed values
   //
-  const [layerByTime, setLayerByTime] = useState(0);
-  const [currentPoetRound, setCurrentPoetRound] = useState(0);
+  const epochsToDisplay = useMemo(() => {
+    if (!netInfo || !poetInfo) return 0;
+    return currentEpoch + 5;
+  }, [currentEpoch, netInfo, poetInfo]);
+
+  const layersToDisplay = epochsToDisplay * (netInfo?.layersPerEpoch ?? 1);
+
+  const prevEpochsToDisplay = usePrevious(epochsToDisplay);
+
+  const epochsDelta = epochsToDisplay - prevEpochsToDisplay;
+
+  // Fulfull initial groups
+  useEffect(() => {
+    if (groupSetRef.current.length > 0) return;
+    groupSetRef.current.add([
+      {
+        id: 'epochs',
+        content: 'Epochs',
+        className: 'epochs',
+      },
+      {
+        id: 'layers',
+        content: 'Eligible Layers',
+        className: 'layers',
+      },
+      {
+        id: 'layers_optimized',
+        content: 'Eligible Layers',
+        className: 'layers optimized',
+      },
+      {
+        id: 'poet',
+        content: 'PoET',
+        className: 'poet',
+      },
+      {
+        id: 'events',
+        content: 'Events',
+        className: 'events',
+        showNested: false,
+      },
+    ]);
+  }, []);
+
+  // Add the giantic bar for the "optimized layers" group
+  useEffect(() => {
+    if (!netInfo) return;
+
+    dataSetRef.current.update({
+      content: 'Too many layers to display. Please zoom in...',
+      id: 'layer_optimized',
+      group: 'layers_optimized',
+      start: netInfo.genesisTime,
+      end:
+        getLayerEndTime(netInfo.layerDuration, layersToDisplay) +
+        netInfo.genesisTime,
+      className: 'layer',
+      data: {
+        title: 'Too many layers to display. Please zoom in...',
+        type: TimelineItemType.Layer,
+        details: {
+          identities: {},
+        },
+      },
+    });
+  }, [layersToDisplay, netInfo]);
+
+  //
+  // Update current layer and poet round every 5 seconds
+  //
   useEffect(() => {
     let ival: ReturnType<typeof setInterval> | null = null;
     if (netInfo) {
@@ -126,34 +245,7 @@ const useTimelineData = () => {
     };
   }, [netInfo, poetInfo]);
 
-  //
-  // Calculate layers and epochs
-  //
-  const currentEpoch = netInfo
-    ? getEpochByLayer(netInfo.layersPerEpoch, layerByTime)
-    : 0;
-
-  const epochDuration = netInfo
-    ? getEpochDuration(netInfo.layerDuration, netInfo.layersPerEpoch)
-    : 0;
-
-  //
-  // Computed values
-  //
-  const epochsToDisplay = useMemo(() => {
-    if (!netInfo || !poetInfo) return 0;
-    return currentEpoch + 5;
-  }, [currentEpoch, netInfo, poetInfo]);
-
-  const layersToDisplay = epochsToDisplay * (netInfo?.layersPerEpoch ?? 1);
-
-  const prevEpochsToDisplay = usePrevious(epochsToDisplay);
-  const prevLayersToDisplay = usePrevious(layersToDisplay);
-
-  const epochsDelta = epochsToDisplay - prevEpochsToDisplay;
-  const layersDelta = layersToDisplay - prevLayersToDisplay;
-
-  // Update epochs
+  // Add/Update "empty" epochs
   useEffect(() => {
     if (!netInfo) return;
     const epochs = new Array(epochsDelta)
@@ -189,36 +281,7 @@ const useTimelineData = () => {
     updateData(epochs);
   }, [epochsDelta, netInfo, prevEpochsToDisplay]);
 
-  // Update layers
-  useEffect(() => {
-    if (!netInfo) return;
-    const layers = new Array(layersDelta)
-      .fill(null)
-      .map((_, idx): TimelineItem<LayerDetails> => {
-        const index = idx + prevLayersToDisplay;
-        return {
-          content: `${index}`,
-          id: `layer_${index}`,
-          group: 'layers',
-          start:
-            getLayerStartTime(netInfo.layerDuration, index) +
-            netInfo.genesisTime,
-          end:
-            getLayerEndTime(netInfo.layerDuration, index) + netInfo.genesisTime,
-          className: 'layer',
-          data: {
-            title: `Layer ${index}`,
-            type: TimelineItemType.Layer,
-            details: {
-              identities: {},
-            },
-          },
-        };
-      });
-    updateData(layers);
-  }, [layersDelta, netInfo, prevLayersToDisplay]);
-
-  // Update PoET rounds and cycle gaps
+  // Add/Update PoET rounds and cycle gaps
   useEffect(() => {
     if (!netInfo || !poetInfo) return;
     const data = new Array(epochsDelta)
@@ -285,6 +348,7 @@ const useTimelineData = () => {
     [smesherEventsById]
   );
   const prevSmesherEventsIdx = usePrevious(smesherEventsAmountById);
+
   useEffect(() => {
     if (!netInfo || !poetInfo || !smesherEventsById) return;
     const hasManyIdentities = smesherEventsById.length > 1;
@@ -292,12 +356,6 @@ const useTimelineData = () => {
       const delta =
         (smesherEventsAmountById[id] ?? 0) - (prevSmesherEventsIdx[id] ?? 0);
       const group = hasManyIdentities ? `smesher_${id}` : 'events';
-      const smesherRewards = rewards ? rewards[id] ?? [] : [];
-      const eligibilities: Record<
-        number,
-        Record<number, 'eligible' | 'rewarded'>
-      > = {};
-
       const updated = <TimelineItem[]>[];
 
       states.slice(-delta).forEach((item) => {
@@ -315,8 +373,9 @@ const useTimelineData = () => {
 
         // Update epochs and layers
 
-        if (item.state === SmesherEvents.EventName.ELIGIBLE) {
-          (() => {
+        switch (item.state) {
+          // Changing item statuses
+          case SmesherEvents.EventName.ELIGIBLE: {
             const d = details as SmesherEvents.EligibleEventDetails;
             const hasEligibilities = d.layers.length > 0;
             const epoch = getData(`epoch_${atEpoch}`);
@@ -328,57 +387,8 @@ const useTimelineData = () => {
               //
               // TODO: Refactor using more bullet-proof algorithms, like
               //       checking for having ATX for that epoch
-              return;
+              break;
             }
-
-            // Mark eligible / rewarded layers
-            d.layers.forEach((layer) => {
-              const eligibleLayer = getData(`layer_${layer.layer}`);
-              if (eligibleLayer) {
-                const rewarded = smesherRewards.find(
-                  (r) => r.layerPaid === layer.layer
-                );
-                const missed = !rewarded && layerByTime > layer.layer;
-                eligibilities[atEpoch] = {
-                  ...eligibilities[atEpoch],
-                  [layer.layer]: rewarded ? 'rewarded' : 'eligible',
-                };
-                updated.push(
-                  updateItem(eligibleLayer, {
-                    // eslint-disable-next-line no-nested-ternary
-                    className: rewarded
-                      ? 'layer rewarded'
-                      : missed
-                      ? 'layer failed'
-                      : 'layer eligible',
-                    identities: {
-                      // eslint-disable-next-line no-nested-ternary
-                      [id]: rewarded
-                        ? {
-                            state: IdentityState.SUCCESS,
-                            details: `Got reward for Layer ${
-                              layer.layer
-                            }: ${formatSmidge(
-                              // eslint-disable-next-line max-len
-                              rewarded.rewardForFees + rewarded.rewardForLayer
-                            )} to ${rewarded.coinbase} (weight ${layer.count})`,
-                          }
-                        : missed
-                        ? {
-                            state: IdentityState.FAILURE,
-                            // eslint-disable-next-line max-len
-                            details: `Missed publishing proposal at layer ${layer.layer}`,
-                          }
-                        : {
-                            state: IdentityState.ELIGIBLE,
-                            details: `Eligible in Layer ${layer.layer}`,
-                          },
-                    },
-                    content: layer.layer.toString(),
-                  })
-                );
-              }
-            });
 
             const eligibleLayersString = d.layers
               .map((l) => l.layer)
@@ -391,301 +401,194 @@ const useTimelineData = () => {
                 ? `Eligible in Layers ${eligibleLayersString} in epoch ${atEpoch}` // eslint-disable-line max-len
                 : `Not eligible in any layer in epoch ${atEpoch}`
             );
-
-            // Mark eligible epoch
-            if (epoch) {
-              updated.push(
-                updateItem(epoch, {
-                  className: hasEligibilities
-                    ? 'epoch eligible'
-                    : 'epoch failed',
-                  identities: {
-                    [id]: {
-                      state: hasEligibilities
-                        ? IdentityState.ELIGIBLE
-                        : IdentityState.FAILURE,
-                      details: hasEligibilities
-                        ? `Eligible in Layers ${eligibleLayersString}`
-                        : `Not eligible in any layer`,
-                    },
-                  },
-                })
-              );
-            }
-          })();
-        }
-
-        if (item.state === SmesherEvents.EventName.PROPOSAL_PUBLISHED) {
-          const data = details as SmesherEvents.ProposalPublishedEventDetails;
-          const layer = getData(`layer_${data.layer}`);
-          if (layer) {
+            break;
+          }
+          case SmesherEvents.EventName.PROPOSAL_PUBLISHED: {
+            const data = details as SmesherEvents.ProposalPublishedEventDetails;
             setMessage(
               id,
               'success',
               // eslint-disable-next-line max-len
               `Proposal published for Layer ${data.layer} in epoch ${atEpoch}`
             );
-            updated.push(
-              updateItem(layer, {
-                className: 'layer rewarded',
-                identities: {
-                  [id]: {
-                    state: IdentityState.SUCCESS,
-                    details: 'Proposal published',
-                  },
-                },
-              })
+            break;
+          }
+          case SmesherEvents.EventName.PROPOSAL_BUILD_FAILED:
+          case SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED: {
+            setMessage(
+              id,
+              'failed',
+              // eslint-disable-next-line max-len
+              `${
+                item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED
+                  ? 'Proposal build'
+                  : 'Proposal publish'
+              } failed`
             );
-          }
 
-          // Update epoch status
-          const epochItem = getData(`epoch_${atEpoch}`);
-          if (epochItem) {
-            const epochHasAllRewards = Object.values(
-              eligibilities[atEpoch] ?? {}
-            ).every((x) => x === 'rewarded');
-            const epochPassed = currentEpoch > atEpoch;
-            // eslint-disable-next-line no-nested-ternary
-            const [className, idStatus] = epochHasAllRewards
-              ? [
-                  'epoch rewarded',
-                  {
-                    // Rewarded
-                    state: IdentityState.SUCCESS,
-                    details: `Got all rewards for epoch ${atEpoch}`,
-                  },
-                ]
-              : epochPassed
-              ? [
-                  'epoch failed',
-                  {
-                    // Missed some rewards in epoch
-                    state: IdentityState.FAILURE,
-                    details: `Missed rewards for layers ${Object.entries(
-                      eligibilities[atEpoch] ?? {}
-                    )
-                      .filter(([, status]) => status !== 'rewarded')
-                      .map(([layerNum]) => layerNum)
-                      .join(', ')}`,
-                  },
-                ]
-              : [
-                  'epoch eligible',
-                  {
-                    // Waiting for rewards...
-                    state: IdentityState.ELIGIBLE,
-                    details: `Getting rewards...`,
-                  },
-                ];
-
-            if (className && idStatus) {
-              updated.push(
-                updateItem(epochItem, {
-                  className,
-                  identities: {
-                    [id]: idStatus,
-                  },
-                })
-              );
-            }
-          }
-        }
-
-        if (
-          item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED ||
-          item.state === SmesherEvents.EventName.PROPOSAL_PUBLISH_FAILED
-        ) {
-          setMessage(
-            id,
-            'failed',
-            // eslint-disable-next-line max-len
-            `${
-              item.state === SmesherEvents.EventName.PROPOSAL_BUILD_FAILED
-                ? 'Proposal build'
-                : 'Proposal publish'
-            } failed`
-          );
-
-          const epoch = getData(`epoch_${atEpoch}`);
-          if (epoch) {
-            updated.push(
-              updateItem(epoch, {
-                className: 'epoch failed',
-                identities: {
-                  [id]: {
-                    state: IdentityState.FAILURE,
-                    details: (
-                      details as
-                        | SmesherEvents.ProposalPublishFailedEventDetails
-                        | SmesherEvents.ProposalBuildFailedEventDetails
-                    ).message,
-                  },
-                },
-              })
-            );
-          }
-
-          const layer = getData(`layer_${atLayer}`);
-          if (layer) {
-            updated.push(
-              updateItem(layer, {
-                className: 'layer failed',
-                identities: {
-                  [id]: {
-                    state: IdentityState.FAILURE,
-                    details: `${
-                      item.state ===
-                      SmesherEvents.EventName.PROPOSAL_BUILD_FAILED
-                        ? 'Proposal build'
-                        : 'Proposal publish'
-                    } failed: ${
-                      (
-                        details as
-                          | SmesherEvents.ProposalPublishFailedEventDetails
-                          | SmesherEvents.ProposalBuildFailedEventDetails
-                      ).message
-                    }`,
-                  },
-                },
-              })
-            );
-          }
-        }
-
-        if (item.state === SmesherEvents.EventName.GENERATING_POST_PROOF) {
-          setMessage(id, 'success', 'Generating PoST proof...');
-        }
-
-        if (item.state === SmesherEvents.EventName.ATX_BROADCASTED) {
-          const affectedEpoch = atEpoch + 1;
-          const epoch = getData(`epoch_${affectedEpoch}`);
-          if (epoch) {
-            const isOutdated = currentEpoch > affectedEpoch;
-            if (isOutdated) {
-              setMessage(
-                id,
-                'failed',
-                // eslint-disable-next-line max-len
-                `Did not published any proposal in ${affectedEpoch}`
-              );
+            const epoch = getData(`epoch_${atEpoch}`);
+            if (epoch && epoch.className !== 'epoch rewarded') {
               updated.push(
                 updateItem(epoch, {
                   className: 'epoch failed',
                   identities: {
                     [id]: {
                       state: IdentityState.FAILURE,
-                      details: 'Missed publishing proposals',
-                    },
-                  },
-                })
-              );
-            } else {
-              setMessage(
-                id,
-                'success',
-                // eslint-disable-next-line max-len
-                `ATX is broadcasted in epoch ${affectedEpoch}`
-              );
-              updated.push(
-                updateItem(epoch, {
-                  className: 'epoch eligible',
-                  identities: {
-                    [id]: {
-                      state: IdentityState.ELIGIBLE,
-                      details: 'ATX is broadcasted. Waiting for rewards...',
+                      details: (
+                        details as
+                          | SmesherEvents.ProposalPublishFailedEventDetails
+                          | SmesherEvents.ProposalBuildFailedEventDetails
+                      ).message,
                     },
                   },
                 })
               );
             }
-          }
-        }
 
-        if (item.state === SmesherEvents.EventName.POET_PROOF_RECEIVED) {
-          const round = getData(`poet_round_${atRound}`);
-          if (round) {
-            setMessage(
-              id,
-              'success',
-              // eslint-disable-next-line max-len
-              `PoET proof received in round ${atRound}`
-            );
-            updated.push(
-              updateItem(round, {
-                className: 'poet-round success',
-                identities: {
-                  [id]: {
-                    state: IdentityState.SUCCESS,
-                    details: 'PoET proof received',
-                  },
-                },
-              })
-            );
-          }
-          const affectedEpoch = atRound + 2;
-          const epoch = getData(`epoch_${affectedEpoch}`);
-          if (epoch) {
-            updated.push(
-              updateItem(
-                epoch,
-                currentEpoch > affectedEpoch
-                  ? {
-                      className: 'epoch failed',
-                      identities: {
-                        [id]: {
-                          state: IdentityState.FAILURE,
-                          details:
-                            // eslint-disable-next-line max-len
-                            'Did not publish Activation Transaction in time',
-                        },
-                      },
-                    }
-                  : {
-                      className: 'epoch pending',
-                      identities: {
-                        [id]: {
-                          state: IdentityState.PENDING,
-                          details:
-                            // eslint-disable-next-line max-len
-                            'PoET proof received, going to publish Activation Transaction',
-                        },
-                      },
-                    }
-              )
-            );
-          }
-        }
-        if (item.state === SmesherEvents.EventName.POET_REGISTERED) {
-          const affectedRound = atRound + 1;
-          const affectedEpoch = affectedRound + 2;
-          const round = getData(
-            `poet_round_${affectedRound}`
-          ) as TimelineItem<PoetRoundDetails>;
-          if (round) {
-            if (currentPoetRound > affectedRound) {
-              setMessage(
-                id,
-                'failed',
-                // eslint-disable-next-line max-len
-                `Did not received PoET proof for round ${affectedRound} in time. Will not have rewards in epoch ${affectedEpoch}`
-              );
+            const layer = getLayer(atLayer);
+            if (layer) {
               updated.push(
-                updateItem(round, {
-                  className: 'poet-round failed',
+                updateItem(layer, {
+                  className: 'layer failed',
                   identities: {
                     [id]: {
                       state: IdentityState.FAILURE,
-                      // eslint-disable-next-line max-len
-                      details: `Did not received PoET proof for round ${affectedRound} in time`,
+                      details: `${
+                        item.state ===
+                        SmesherEvents.EventName.PROPOSAL_BUILD_FAILED
+                          ? 'Proposal build'
+                          : 'Proposal publish'
+                      } failed: ${
+                        (
+                          details as
+                            | SmesherEvents.ProposalPublishFailedEventDetails
+                            | SmesherEvents.ProposalBuildFailedEventDetails
+                        ).message
+                      }`,
                     },
                   },
                 })
               );
-              const epoch = getData(`epoch_${affectedEpoch}`);
-              if (epoch) {
+            }
+            break;
+          }
+          case SmesherEvents.EventName.ATX_BROADCASTED: {
+            const affectedEpoch = atEpoch + 1;
+            const epoch = getData(`epoch_${affectedEpoch}`);
+            if (epoch && epoch.className !== 'epoch rewarded') {
+              const isOutdated = currentEpoch > affectedEpoch;
+              if (isOutdated) {
+                setMessage(
+                  id,
+                  'failed',
+                  // eslint-disable-next-line max-len
+                  `Did not published any proposal in ${affectedEpoch}`
+                );
                 updated.push(
                   updateItem(epoch, {
                     className: 'epoch failed',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.FAILURE,
+                        details: 'Missed publishing proposals',
+                      },
+                    },
+                  })
+                );
+              } else {
+                setMessage(
+                  id,
+                  'success',
+                  // eslint-disable-next-line max-len
+                  `ATX is broadcasted in epoch ${affectedEpoch}`
+                );
+                updated.push(
+                  updateItem(epoch, {
+                    className: 'epoch eligible',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.ELIGIBLE,
+                        details: 'ATX is broadcasted. Waiting for rewards...',
+                      },
+                    },
+                  })
+                );
+              }
+            }
+            break;
+          }
+          case SmesherEvents.EventName.POET_PROOF_RECEIVED: {
+            const round = getData(`poet_round_${atRound}`);
+            if (round) {
+              setMessage(
+                id,
+                'success',
+                // eslint-disable-next-line max-len
+                `PoET proof received in round ${atRound}`
+              );
+              updated.push(
+                updateItem(round, {
+                  className: 'poet-round success',
+                  identities: {
+                    [id]: {
+                      state: IdentityState.SUCCESS,
+                      details: 'PoET proof received',
+                    },
+                  },
+                })
+              );
+            }
+            const affectedEpoch = atRound + 2;
+            const epoch = getData(`epoch_${affectedEpoch}`);
+            if (epoch && epoch.className !== 'epoch rewarded') {
+              updated.push(
+                updateItem(
+                  epoch,
+                  currentEpoch > affectedEpoch
+                    ? {
+                        className: 'epoch failed',
+                        identities: {
+                          [id]: {
+                            state: IdentityState.FAILURE,
+                            details:
+                              // eslint-disable-next-line max-len
+                              'Did not publish Activation Transaction in time',
+                          },
+                        },
+                      }
+                    : {
+                        className: 'epoch pending',
+                        identities: {
+                          [id]: {
+                            state: IdentityState.PENDING,
+                            details:
+                              // eslint-disable-next-line max-len
+                              'PoET proof received, going to publish Activation Transaction',
+                          },
+                        },
+                      }
+                )
+              );
+            }
+            break;
+          }
+          case SmesherEvents.EventName.POET_REGISTERED: {
+            const affectedRound = atRound + 1;
+            const affectedEpoch = affectedRound + 2;
+            const round = getData(
+              `poet_round_${affectedRound}`
+            ) as TimelineItem<PoetRoundDetails>;
+            if (round) {
+              if (currentPoetRound > affectedRound) {
+                setMessage(
+                  id,
+                  'failed',
+                  // eslint-disable-next-line max-len
+                  `Did not received PoET proof for round ${affectedRound} in time. Will not have rewards in epoch ${affectedEpoch}`
+                );
+                updated.push(
+                  updateItem(round, {
+                    className: 'poet-round failed',
                     identities: {
                       [id]: {
                         state: IdentityState.FAILURE,
@@ -695,85 +598,83 @@ const useTimelineData = () => {
                     },
                   })
                 );
-              }
-            } else {
-              setMessage(
-                id,
-                'success',
-                // eslint-disable-next-line max-len
-                `Registered in PoET round ${affectedRound}`
-              );
-              updated.push(
-                updateItem(round, {
-                  className: 'poet-round eligible',
-                  identities: {
-                    [id]: {
-                      state: IdentityState.ELIGIBLE,
-                      details: 'Registered in PoET',
-                    },
-                  },
-                })
-              );
-              const epoch = getData(`epoch_${affectedEpoch}`);
-              if (epoch) {
+                const epoch = getData(`epoch_${affectedEpoch}`);
+                if (epoch && epoch.className !== 'epoch rewarded') {
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch failed',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.FAILURE,
+                          // eslint-disable-next-line max-len
+                          details: `Did not received PoET proof for round ${affectedRound} in time`,
+                        },
+                      },
+                    })
+                  );
+                }
+              } else {
+                setMessage(
+                  id,
+                  'success',
+                  // eslint-disable-next-line max-len
+                  `Registered in PoET round ${affectedRound}`
+                );
                 updated.push(
-                  updateItem(epoch, {
-                    className: 'epoch eligible',
+                  updateItem(round, {
+                    className: 'poet-round eligible',
                     identities: {
                       [id]: {
                         state: IdentityState.ELIGIBLE,
-                        // eslint-disable-next-line max-len
-                        details:
-                          'Registered in PoET. Waiting for PoET proof...',
+                        details: 'Registered in PoET',
                       },
                     },
                   })
                 );
+                const epoch = getData(`epoch_${affectedEpoch}`);
+                if (epoch && epoch.className !== 'epoch rewarded') {
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch eligible',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.ELIGIBLE,
+                          // eslint-disable-next-line max-len
+                          details:
+                            'Registered in PoET. Waiting for PoET proof...',
+                        },
+                      },
+                    })
+                  );
+                }
               }
             }
+            break;
           }
-        }
-
-        if (
-          item.state ===
-          SmesherEvents.EventName.WAITING_FOR_POET_REGISTRATION_WINDOW
-        ) {
-          const affectedRound = atRound + 1;
-          const affectedEpoch = affectedRound + 2;
-          // Mark next PoET round...
-          const nextRound = getData(
-            `poet_round_${affectedRound}`
-          ) as TimelineItem<PoetRoundDetails>;
-          if (nextRound) {
-            // TODO: Mark as failed or success
-            const roundNow = getPoetRoundByTime(
-              poetInfo.config,
-              netInfo,
-              Date.now()
-            );
-            // Mark as failed due to missing it
-            if (affectedRound < roundNow) {
-              setMessage(
-                id,
-                'failed',
-                `Missed PoET registration window in round ${affectedRound}`
+          case SmesherEvents.EventName.WAITING_FOR_POET_REGISTRATION_WINDOW: {
+            const affectedRound = atRound + 1;
+            const affectedEpoch = affectedRound + 2;
+            // Mark next PoET round...
+            const nextRound = getData(
+              `poet_round_${affectedRound}`
+            ) as TimelineItem<PoetRoundDetails>;
+            if (nextRound) {
+              // TODO: Mark as failed or success
+              const roundNow = getPoetRoundByTime(
+                poetInfo.config,
+                netInfo,
+                Date.now()
               );
-              updated.push(
-                updateItem(nextRound, {
-                  className: 'poet-round failed',
-                  identities: {
-                    [id]: {
-                      state: IdentityState.FAILURE,
-                      details: 'Missed PoET registration window',
-                    },
-                  },
-                })
-              );
-              const epoch = getData(`epoch_${affectedEpoch}`);
-              if (epoch) {
+              // Mark as failed due to missing it
+              if (affectedRound < roundNow) {
+                setMessage(
+                  id,
+                  'failed',
+                  `Missed PoET registration window in round ${affectedRound}`
+                );
                 updated.push(
-                  updateItem(epoch, {
-                    className: 'epoch failed',
+                  updateItem(nextRound, {
+                    className: 'poet-round failed',
                     identities: {
                       [id]: {
                         state: IdentityState.FAILURE,
@@ -782,27 +683,64 @@ const useTimelineData = () => {
                     },
                   })
                 );
-              }
-            } else {
-              // Mark as pending
-              setMessage(
-                id,
-                'pending',
-                // eslint-disable-next-line max-len
-                `Waiting for PoET registration window in round ${affectedRound}`
-              );
-              updated.push(
-                updateItem(nextRound, {
-                  className: 'poet-round pending',
-                  identities: {
-                    [id]: {
-                      state: IdentityState.PENDING,
-                      details: 'Waiting for PoET registration window',
+                const epoch = getData(`epoch_${affectedEpoch}`);
+                if (epoch && epoch.className !== 'epoch rewarded') {
+                  updated.push(
+                    updateItem(epoch, {
+                      className: 'epoch failed',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.FAILURE,
+                          details: 'Missed PoET registration window',
+                        },
+                      },
+                    })
+                  );
+                }
+              } else {
+                // Mark as pending
+                setMessage(
+                  id,
+                  'pending',
+                  // eslint-disable-next-line max-len
+                  `Waiting for PoET registration window in round ${affectedRound}`
+                );
+                updated.push(
+                  updateItem(nextRound, {
+                    className: 'poet-round pending',
+                    identities: {
+                      [id]: {
+                        state: IdentityState.PENDING,
+                        details: 'Waiting for PoET registration window',
+                      },
                     },
-                  },
-                })
-              );
+                  })
+                );
+              }
             }
+            break;
+          }
+          // Update identity status message only
+          case SmesherEvents.EventName.GENERATING_POST_PROOF: {
+            setMessage(id, 'success', 'Generating PoST proof...');
+            break;
+          }
+          case SmesherEvents.EventName.WAIT_FOR_POET_ROUND_END: {
+            setMessage(id, 'pending', 'Waiting for PoET round end...', true);
+            break;
+          }
+          case SmesherEvents.EventName.WAIT_FOR_ATX_SYNCED: {
+            setMessage(id, 'pending', 'Waiting for ATX sync...');
+            break;
+          }
+          case SmesherEvents.EventName.RETRYING: {
+            const d = details as SmesherEvents.RetryingEventDetails;
+            setMessage(id, 'failed', `Retrying due to error: ${d.message}`);
+            break;
+          }
+          default: {
+            // Do nothing in other cases
+            break;
           }
         }
 
@@ -830,9 +768,119 @@ const useTimelineData = () => {
         });
       });
 
+      if (eligibilities && rewards) {
+        const smesherRewards = Object.fromEntries(
+          (rewards[id] || []).map((x) => [x.layerPaid, x])
+        );
+
+        const epochs = eligibilities[id]?.epochs || {};
+        Object.entries(epochs).forEach(
+          ([epochStr, { eligibilities: elig }]) => {
+            // Update epoch
+            const epoch = parseInt(epochStr, 10);
+            const epochItem = getData(`epoch_${epoch}`);
+            if (epochItem) {
+              const epochPassed = currentEpoch > epoch;
+              const epochHasAllRewards = Object.values(elig).every(
+                ({ layer }) => smesherRewards[layer]
+              );
+              // eslint-disable-next-line no-nested-ternary
+              const [className, idStatus] = epochHasAllRewards
+                ? [
+                    'epoch rewarded',
+                    {
+                      // Rewarded
+                      state: IdentityState.SUCCESS,
+                      details: `Got all rewards for epoch ${epoch}`,
+                    },
+                  ]
+                : epochPassed
+                ? [
+                    'epoch failed',
+                    {
+                      // Missed some rewards in epoch
+                      state: IdentityState.FAILURE,
+                      details: `Missed rewards for layers ${Object.entries(elig)
+                        .filter(([, { layer }]) => !smesherRewards[layer])
+                        .map(([layerNum]) => layerNum)
+                        .join(', ')}`,
+                    },
+                  ]
+                : [
+                    'epoch eligible',
+                    {
+                      // Waiting for rewards...
+                      state: IdentityState.ELIGIBLE,
+                      details: `Getting rewards...`,
+                    },
+                  ];
+
+              if (className && idStatus) {
+                updated.push(
+                  updateItem(epochItem, {
+                    className,
+                    identities: {
+                      [id]: idStatus,
+                    },
+                  })
+                );
+              }
+            }
+
+            // Update layers
+            elig.forEach(({ layer }) => {
+              const layerReward = smesherRewards[layer];
+              if (layerReward) {
+                const layerItem = getLayer(layer);
+                if (layerItem) {
+                  updated.push(
+                    updateItem(layerItem, {
+                      className: 'layer rewarded',
+                      identities: {
+                        [id]: {
+                          state: IdentityState.SUCCESS,
+                          // eslint-disable-next-line max-len
+                          details: `Got reward for Layer ${layer}: ${formatSmidge(
+                            layerReward.rewardForFees +
+                              layerReward.rewardForLayer
+                          )} to ${layerReward.coinbase}`,
+                        },
+                      },
+                    })
+                  );
+                }
+              } else {
+                const isMissed = layerByTime > layer;
+                const status = isMissed ? 'failed' : 'eligible';
+                const layerItem = getLayer(layer);
+                if (layerItem) {
+                  updated.push(
+                    updateItem(layerItem, {
+                      className: `layer ${status}`,
+                      identities: {
+                        [id]: {
+                          state:
+                            status === 'eligible'
+                              ? IdentityState.ELIGIBLE
+                              : IdentityState.FAILURE,
+                          details:
+                            status === 'eligible'
+                              ? 'Eligible for reward'
+                              : 'Missed reward',
+                        },
+                      },
+                    })
+                  );
+                }
+              }
+            });
+          }
+        );
+      }
+
       if (rewards && rewards[id]) {
         rewards[id]?.forEach((reward) => {
-          const layer = getData(`layer_${reward.layerPaid}`);
+          const layer = getLayer(reward.layerPaid);
           if (layer) {
             updated.push(
               updateItem(layer, {
@@ -858,6 +906,8 @@ const useTimelineData = () => {
   }, [
     currentEpoch,
     currentPoetRound,
+    eligibilities,
+    getLayer,
     layerByTime,
     netInfo,
     poetInfo,
@@ -867,17 +917,37 @@ const useTimelineData = () => {
     smesherEventsById,
   ]);
 
-  const nestedEventGroups = useMemo(() => {
-    const ids = Object.keys(smesherStates || {});
+  const smesherIds = useMemo(() => {
+    const ids = Object.keys(smesherStates || {}).sort(sortHexString);
     return ids.length > 1 ? ids : [];
   }, [smesherStates]);
+
+  useEffect(() => {
+    groupSetRef.current.update({
+      id: 'events',
+      nestedGroups:
+        smesherIds.length > 1
+          ? smesherIds.map((id) => `smesher_${id}`)
+          : undefined,
+    });
+
+    groupSetRef.current.update(
+      smesherIds.map(
+        (id): TimelineGroup => ({
+          id: `smesher_${id}`,
+          content: getAbbreviatedHexString(id),
+        })
+      )
+    );
+  }, [smesherIds]);
 
   return {
     currentEpoch,
     genesisTime: netInfo?.genesisTime,
     epochDuration,
     items: dataSetRef.current,
-    nestedEventGroups,
+    groups: groupSetRef.current,
+    smesherIds,
     smesherMessages,
   };
 };

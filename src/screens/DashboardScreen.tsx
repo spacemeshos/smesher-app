@@ -138,13 +138,19 @@ function DashboardScreen(): JSX.Element {
         >
           <Box textAlign="center">
             <Spinner
-              speed={SmesherStates.error ? '3s' : '1.2s'}
-              color={SmesherStates.error ? 'brand.red' : 'brand.green'}
+              speed={NetInfo.error || SmesherStates.error ? '3s' : '1.2s'}
+              color={
+                NetInfo.error || SmesherStates.error
+                  ? 'brand.red'
+                  : 'brand.green'
+              }
               size="xxl"
             />
-            {SmesherStates.error ? (
+            {NetInfo.error || SmesherStates.error ? (
               <Text fontSize={28} color="brand.red">
-                {SmesherStates.error.message}
+                {NetInfo.error?.message ||
+                  SmesherStates.error?.message ||
+                  'Unknown error'}
                 <br />
                 Please wait, reconnecting...
               </Text>

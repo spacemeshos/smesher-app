@@ -2,8 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 
 import { fetchRewardsBySmesherIds } from '../api/requests/rewards';
-import { HexString } from '../types/common';
-import { Reward, RewardsPerIdentity } from '../types/reward';
+import { RewardsPerIdentity } from '../types/reward';
 
 import createDynamicStore, {
   createViewOnlyDynamicStore,
@@ -13,8 +12,7 @@ import createDynamicStore, {
 import useEveryLayerFetcher from './utils/useEveryLayerFetcher';
 import { useSmesherIds } from './useSmesherStates';
 
-type RewardsState = Record<HexString, Reward[]>;
-const useRewardsStore = createDynamicStore<RewardsState>();
+const useRewardsStore = createDynamicStore<RewardsPerIdentity>();
 
 type RecordList<T> = Record<string, T[]>;
 const merge = <T>(prev: RecordList<T>, next: RecordList<T>) =>
