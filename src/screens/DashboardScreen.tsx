@@ -23,6 +23,7 @@ import {
   Text,
 } from '@chakra-ui/react';
 
+import { version } from '../../package.json';
 import StatusBulb, { getStatusByStore } from '../components/basic/StatusBulb';
 import TableContents from '../components/basic/TableContents';
 import NetworkInfo from '../components/dashboard/NetworkInfo';
@@ -187,7 +188,17 @@ function DashboardScreen(): JSX.Element {
         alignItems="flex-start"
         overflow="auto"
       >
-        <Box mb={2} w="100%">
+        <Box
+          pos="absolute"
+          top={0}
+          right={0}
+          mt={2}
+          mr={4}
+          title="Smesher app version"
+        >
+          v{version}
+        </Box>
+        <Box mb={2} w="100%" pr={12}>
           <StatusBulb status={apiStatus} mr={2} />
           Connected to {getConnection()}
           {NetInfo.error && (
