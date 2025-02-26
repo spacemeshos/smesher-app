@@ -57,3 +57,13 @@ To help you build more efficient commit messages, you can use the [commitizen](h
 ```bash
 yarn cz
 ```
+
+## Development
+
+### Environment variables
+
+For better developer experience there are some ENV variables that is available ONLY for dev mode (`yarn dev`) and won't be used in the built code due to the security reasons.
+
+- `APP_VERSION` — SemVer of Smesher App to be used instead of one in `package.json`
+- `VERSIONS_JSON_URL` — full URL to the file that maps minimal Smesher Service Version to the latest Smesher App Version
+- `OFFICIAL_HOSTED_URL` — the first segment of URL (protocol and hostname), will be used for proposal to switch to another hosted version

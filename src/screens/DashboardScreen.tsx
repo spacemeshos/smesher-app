@@ -23,7 +23,6 @@ import {
   Text,
 } from '@chakra-ui/react';
 
-import { version } from '../../package.json';
 import StatusBulb, { getStatusByStore } from '../components/basic/StatusBulb';
 import TableContents from '../components/basic/TableContents';
 import NetworkInfo from '../components/dashboard/NetworkInfo';
@@ -45,6 +44,7 @@ import useSmesherConnection from '../store/useSmesherConnection';
 import useSmesherStates from '../store/useSmesherStates';
 import useVersions from '../store/useVersions';
 import { HexString } from '../types/common';
+import { APP_VERSION } from '../utils/constants';
 import { sortHexString } from '../utils/hexString';
 import { formatSmidge } from '../utils/smh';
 
@@ -196,7 +196,7 @@ function DashboardScreen(): JSX.Element {
           mr={4}
           title="Smesher app version"
         >
-          v{version}
+          v{APP_VERSION}
         </Box>
         <Box mb={2} w="100%" pr={12}>
           <StatusBulb status={apiStatus} mr={2} />

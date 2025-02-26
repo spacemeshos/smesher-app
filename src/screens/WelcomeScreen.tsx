@@ -12,9 +12,9 @@ import {
 import { O } from '@mobily/ts-belt';
 import { IconArrowNarrowRight } from '@tabler/icons-react';
 
-import { version } from '../../package.json';
 import Logo from '../components/basic/Logo';
 import useSmesherConnection from '../store/useSmesherConnection';
+import { APP_VERSION } from '../utils/constants';
 import { normalizeURL } from '../utils/url';
 
 function WelcomeScreen(): JSX.Element {
@@ -109,7 +109,7 @@ function WelcomeScreen(): JSX.Element {
         color="gray.500"
         textAlign="center"
       >
-        Smesher App v{version}
+        Smesher App v{APP_VERSION}
       </Text>
     </Flex>
   );
