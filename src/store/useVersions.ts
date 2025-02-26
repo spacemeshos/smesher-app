@@ -2,13 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { singletonHook } from 'react-singleton-hook';
 import semver from 'semver';
 
-import { version as currentAppVersion } from '../../package.json';
 import { fetchSmesherVersion, fetchVersionsMap } from '../api/requests/version';
+import { APP_VERSION, VERSIONS_JSON_URL } from '../utils/constants';
 
 import useSmesherConnection from './useSmesherConnection';
-
-const APP_VERSIONS_MAP_URL =
-  'https://configs.spacemesh.network/smesher-app.versions.json';
 
 type VersionInfo = [
   // Version of Smesher Service fetched via API
@@ -34,7 +31,7 @@ const checkVersion = async (inputVersion: string): Promise<VersionCheck> => {
   const prefix = getPrefix(inputVersion);
   const version = removePrefix(prefix, inputVersion);
 
-  const versions = await fetchVersionsMap(APP_VERSIONS_MAP_URL);
+  const versions = await fetchVersionsMap(VERSIONS_JSON_URL);
   const versionsByPrefix = versions
     .filter(([v]) => getPrefix(v) === prefix)
     .map(([s, f]) => [removePrefix(prefix, s), f]);
@@ -46,7 +43,7 @@ const checkVersion = async (inputVersion: string): Promise<VersionCheck> => {
     return isGte && isUpToNext;
   });
 
-  const actual: VersionInfo = [inputVersion, currentAppVersion];
+  const actual: VersionInfo = [inputVersion, APP_VERSION];
   const expected = versions[idxBySmesherVersion];
   if (!expected) {
     throw new Error(
@@ -57,16 +54,11 @@ const checkVersion = async (inputVersion: string): Promise<VersionCheck> => {
 
   const prevFrontEndVersion = versions[idxBySmesherVersion - 1]?.[1];
   const hasUpdate =
-    semver.lt(currentAppVersion, expected[1]) &&
-    (prevFrontEndVersion
-      ? semver.gt(currentAppVersion, prevFrontEndVersion)
-      : true);
+    semver.lt(APP_VERSION, expected[1]) &&
+    (prevFrontEndVersion ? semver.gt(APP_VERSION, prevFrontEndVersion) : true);
   const supported = prevFrontEndVersion
-    ? semver.satisfies(
-        currentAppVersion,
-        `>${prevFrontEndVersion} <=${expected[1]}`
-      )
-    : semver.satisfies(currentAppVersion, `<=${expected[1]}`);
+    ? semver.satisfies(APP_VERSION, `>${prevFrontEndVersion} <=${expected[1]}`)
+    : semver.satisfies(APP_VERSION, `<=${expected[1]}`);
 
   return {
     supported,
@@ -116,7 +108,6 @@ const useVersions = () => {
       refresh,
       smesherVersion,
       versionCheck,
-      currentAppVersion,
       error,
     }),
     [error, refresh, smesherVersion, versionCheck, loading]
@@ -130,7 +121,6 @@ export default singletonHook(
     error: null,
     smesherVersion: null,
     versionCheck: null,
-    currentAppVersion: '',
   },
   useVersions
 );

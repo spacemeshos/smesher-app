@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 
 import useVersions from '../store/useVersions';
+import { HOSTED_APP_URL } from '../utils/constants';
 
 function VersionMismatch(): JSX.Element | null {
   const { loading, error, refresh, smesherVersion, versionCheck } =
@@ -75,8 +76,8 @@ function VersionMismatch(): JSX.Element | null {
     );
   }
 
-  const url = `https://smesher-beta.spacemesh.network/${
-    versionCheck.actual[1] ? `version/${versionCheck.actual[1]}/` : ''
+  const url = `${HOSTED_APP_URL}/${
+    versionCheck.actual[1] ? `version/${versionCheck.expected[1]}/` : ''
   }`;
 
   return (
