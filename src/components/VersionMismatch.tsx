@@ -75,7 +75,7 @@ function VersionMismatch(): JSX.Element | null {
     );
   }
 
-  const url = `https://smesher-alpha.spacemesh.network/${
+  const url = `https://smesher-beta.spacemesh.network/${
     versionCheck.actual[1] ? `version/${versionCheck.actual[1]}/` : ''
   }`;
 
