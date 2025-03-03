@@ -333,7 +333,7 @@ function DashboardScreen(): JSX.Element {
                               </Text>
                               <Text fontSize="xs" color="gray.500">
                                 Published
-                                <strong>{proposalStats} proposals</strong>
+                                <strong> {proposalStats} proposals</strong>
                               </Text>
                               <Text fontSize="xs" color="gray.500">
                                 {/* eslint-disable-next-line max-len */}
