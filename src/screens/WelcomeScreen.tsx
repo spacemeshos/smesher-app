@@ -14,6 +14,7 @@ import { IconArrowNarrowRight } from '@tabler/icons-react';
 
 import Logo from '../components/basic/Logo';
 import useSmesherConnection from '../store/useSmesherConnection';
+import { APP_VERSION } from '../utils/constants';
 import { normalizeURL } from '../utils/url';
 
 function WelcomeScreen(): JSX.Element {
@@ -100,6 +101,16 @@ function WelcomeScreen(): JSX.Element {
           </Button>
         </Form>
       </Flex>
+
+      <Text
+        pos="absolute"
+        bottom={10}
+        fontSize="sm"
+        color="gray.500"
+        textAlign="center"
+      >
+        Smesher App v{APP_VERSION}
+      </Text>
     </Flex>
   );
 }

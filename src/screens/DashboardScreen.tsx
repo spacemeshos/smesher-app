@@ -31,6 +31,7 @@ import OptionalError from '../components/dashboard/OptionalError';
 // eslint-disable-next-line max-len
 import SmesherIdentityDetails from '../components/dashboard/SmesherIdentityDetails';
 import SmeshingTimeline from '../components/timeline/SmeshingTimeline';
+import VersionMismatch from '../components/VersionMismatch';
 import useTimelineData from '../hooks/useTimelineData';
 import useActivations from '../store/useActivations';
 import useEligibilities from '../store/useEligibilities';
@@ -41,7 +42,9 @@ import useProposals from '../store/useProposals';
 import useRewards from '../store/useRewards';
 import useSmesherConnection from '../store/useSmesherConnection';
 import useSmesherStates from '../store/useSmesherStates';
+import useVersions from '../store/useVersions';
 import { HexString } from '../types/common';
+import { APP_VERSION } from '../utils/constants';
 import { sortHexString } from '../utils/hexString';
 import { formatSmidge } from '../utils/smh';
 
@@ -57,7 +60,8 @@ function DashboardScreen(): JSX.Element {
   const Proposals = useProposals();
   const Rewards = useRewards();
   const navigate = useNavigate();
-  const data = useTimelineData();
+  const Timeline = useTimelineData();
+  const { versionCheck } = useVersions();
 
   const disconnect = () => {
     setConnection('');
@@ -121,6 +125,18 @@ function DashboardScreen(): JSX.Element {
 
   const [forceClosed, setForceClosed] = useState(false);
 
+  const netStatus = getStatusByStore(NetInfo);
+  /* eslint-disable no-nested-ternary */
+  const apiStatus =
+    netStatus === 'ok'
+      ? versionCheck
+        ? versionCheck.supported
+          ? 'ok'
+          : 'pending'
+        : 'ok'
+      : 'pending';
+  /* eslint-enable no-nested-ternary */
+
   return (
     <>
       <Modal
@@ -172,8 +188,18 @@ function DashboardScreen(): JSX.Element {
         alignItems="flex-start"
         overflow="auto"
       >
-        <Box mb={2} w="100%">
-          <StatusBulb status={getStatusByStore(NetInfo)} mr={2} />
+        <Box
+          pos="absolute"
+          top={0}
+          right={0}
+          mt={2}
+          mr={4}
+          title="Smesher app version"
+        >
+          v{APP_VERSION}
+        </Box>
+        <Box mb={2} w="100%" pr={12}>
+          <StatusBulb status={apiStatus} mr={2} />
           Connected to {getConnection()}
           {NetInfo.error && (
             <Button
@@ -186,6 +212,7 @@ function DashboardScreen(): JSX.Element {
               [Refresh]
             </Button>
           )}
+          <VersionMismatch />
           <Button
             variant="link"
             fontWeight="normal"
@@ -302,13 +329,13 @@ function DashboardScreen(): JSX.Element {
                               <Box
                                 as="span"
                                 className={`id-marker ${
-                                  data.smesherMessages[id]?.type ?? ''
+                                  Timeline.smesherMessages[id]?.type ?? ''
                                 }`}
                                 mr={1}
                               >
                                 {index + 1}
                               </Box>
-                              {data.smesherMessages[id]?.message ??
+                              {Timeline.smesherMessages[id]?.message ??
                                 'Waiting for the smesher events...'}
                             </Text>
 
